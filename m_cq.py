@@ -71,7 +71,7 @@ def cq_update_test(conn):
 					"url":"https://api.cryptoquant.com/v1/btc/exchange-flows/netflow",
 					"need_exchange_list":True,
 					"query_points":["netflow_total"],
-					"db_query":f"INSERT INTO {cq_table_1} (datestamp, exchange_symbol, netflow) VALUES(%s, %s, %s) ON DUPLICATE KEY UPDATE netflow = VALUES(netflow)"
+					"db_query":f"INSERT INTO {cq_table_1} (datestamp, exchange_symbol, netflow_total) VALUES(%s, %s, %s) ON DUPLICATE KEY UPDATE netflow_total = VALUES(netflow_total)"
 				},
 				"inflow":{
 					"url":"https://api.cryptoquant.com/v1/btc/exchange-flows/inflow",
