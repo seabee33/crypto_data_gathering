@@ -1,4 +1,4 @@
-# Gets data from the crypto quant api to insert it into a local db
+# Gets data from crypto quant api and inserts into local db
 import requests, mysql.connector, json, time, os
 from datetime import datetime, timedelta
 from mysql.connector import Error
@@ -56,15 +56,16 @@ def cq_update_test(conn):
 			current_date_m2 = (datetime.now() - timedelta(days=2)).strftime("%Y%m%d")
 			cq_exchange_list = cq_get_all_exchanges(conn)
 
-			cq_table_1 = "cq_btc_raw_data"
+			cq_table_1 = "cq_btc_exchange_raw_data"
+			cq_table_2 = "cq_btc_miner_raw_data"
 
 			cq_params = {
 				# Exchange Flows
 				"reserve": {
 					"url": "https://api.cryptoquant.com/v1/btc/exchange-flows/reserve",
 					"need_exchange_list":True,
-					"query_points":["reserve", "reserve_usd"],
-					"db_query": f"INSERT INTO {cq_table_1} (datestamp, exchange_symbol, reserve_btc, reserve_usd) VALUES(%s, %s, %s, %s) ON DUPLICATE KEY UPDATE reserve_btc = VALUES(reserve_btc), reserve_usd = VALUES(reserve_usd)"
+					"query_points":["reserve_usd", "reserve"],
+					"db_query": f"INSERT INTO {cq_table_1} (datestamp, exchange_symbol, reserve_usd, reserve_btc) VALUES(%s, %s, %s, %s) ON DUPLICATE KEY UPDATE reserve_btc = VALUES(reserve_btc), reserve_usd = VALUES(reserve_usd)"
 				},
 				"netflow": {
 					"url":"https://api.cryptoquant.com/v1/btc/exchange-flows/netflow",
@@ -107,9 +108,9 @@ def cq_update_test(conn):
 					"url":"https://api.cryptoquant.com/v1/btc/flow-indicator/mpi",
 					"need_exchange_list":False,
 					"query_points":["mpi"],
-					"db_query":f"INSERT INTO {cq_table_1} (datestamp, exchange_symbol, mpi) VALUES (%s, %s, %s) ON DUPLICATE KEY UPDATE mpi = VALUES(mpi)"
+					"db_query":f"INSERT INTO {cq_table_2} (datestamp, exchange_symbol, mpi) VALUES (%s, %s, %s) ON DUPLICATE KEY UPDATE mpi = VALUES(mpi)"
 				},
-				"":{
+				"exchange-whale-ratio":{
 					"url":"https://api.cryptoquant.com/v1/btc/flow-indicator/exchange-whale-ratio",
 					"need_exchange_list":True,
 					"query_points":["exchange_whale_ratio"],
@@ -126,7 +127,7 @@ def cq_update_test(conn):
 						last_update = "20100101" if last_update is None else (last_update - timedelta(days=10)).strftime("%Y%m%d")
 
 						cq_data_to_update = []
-						response = requests.get(f"{params["url"]}?window=day&from={last_update}&to={current_date_m2}&exchange={exchange}&limit=10000", headers={"Authorization": f"Bearer {cq_api_key}"})
+						response = requests.get(f'{params["url"]}?window=day&from={last_update}&to={current_date_m2}&exchange={exchange}&limit=10000', headers={"Authorization": f"Bearer {cq_api_key}"})
 						data = response.json()
 						
 						if data["status"]["code"] == 400:
@@ -141,22 +142,22 @@ def cq_update_test(conn):
 							cursor.executemany(params["db_query"], cq_data_to_update)			
 							conn.commit()
 				elif not params["need_exchange_list"]:
-					print(f"Checking {endpoint} data for {exchange}")
+					print(f"Checking {endpoint} data")
 
-					last_update = cq_get_latest_date_for_thing(conn, "cq_btc_raw_data", exchange, params["query_points"][0])
+					last_update = cq_get_latest_date_for_thing(conn, cq_table_2, params["query_points"][0])
 					last_update = "20100101" if last_update is None else (last_update - timedelta(days=10)).strftime("%Y%m%d")
 
 					cq_data_to_update = []
-					response = requests.get(f"{params["url"]}?window=day&from={last_update}&to={current_date_m2}&exchange={exchange}&limit=10000", headers={"Authorization": f"Bearer {cq_api_key}"})
+					response = requests.get(f'{params["url"]}?window=day&from={last_update}&to={current_date_m2}&limit=10000', headers={"Authorization": f"Bearer {cq_api_key}"})
 					data = response.json()
 					
 					if data["status"]["code"] == 400:
-						print(f"No data for exchange: {exchange}")
+						print(f"No data for query: {endpoint}")
 					elif data["status"]["code"] != 200:
 						print("error fetching data")
 					else:
 						cq_data_to_update = [
-							[item["date"], exchange] + [item[param] for param in params["query_points"]]
+							[item["date"]] + [item[param] for param in params["query_points"]]
 							for item in data["result"]["data"]
 						]
 						cursor.executemany(params["db_query"], cq_data_to_update)			
@@ -165,3 +166,9 @@ def cq_update_test(conn):
 	except Error as e:
 		print(f"CQ Error: {e}")
 	
+
+# for debugging, ignore
+# j_data = json.dumps(data, indent=4)
+# with open ("data.json", "w") as file:
+# 	file.write(j_data)
+
