@@ -13,7 +13,7 @@ table_data = {
 	"tt_all_metrics_data":"""
 	CREATE TABLE IF NOT EXISTS tt_all_metrics_data (
 		id INT AUTO_INCREMENT PRIMARY KEY,
-		timestamp DATE,
+		datestamp DATE,
 		project_name VARCHAR(255),
 		project_id VARCHAR(255),
 		active_addresses_daily INT DEFAULT NULL,
@@ -52,6 +52,7 @@ table_data = {
 		net_deposits DOUBLE DEFAULT NULL,
 		nns_proposals INT DEFAULT NULL,
 		number_of_icp_transactions INT DEFAULT NULL,
+		notional_trading_volume DOUBLE DEFAULT NULL,
 		number_of_neurons INT DEFAULT NULL,
 		operating_expenses DOUBLE DEFAULT NULL,
 		outstanding_supply DOUBLE DEFAULT NULL,
@@ -65,6 +66,8 @@ table_data = {
 		stablecoin_holders INT DEFAULT NULL,
 		stablecoin_mau INT DEFAULT NULL,
 		stablecoin_transfer_volume DOUBLE DEFAULT NULL,
+		stablecoin_mints DOUBLE DEFAULT NULL,
+		stablecoin_redemptions DOUBLE DEFAULT NULL,
 		stablecoin_wau INT DEFAULT NULL,
 		superchain_fees DOUBLE DEFAULT NULL,
 		tokenholders INT DEFAULT NULL,
@@ -399,14 +402,16 @@ table_data = {
 			id INT AUTO_INCREMENT PRIMARY KEY,
 			project_name VARCHAR(32),
 			datestamp DATE,
+			sector VARCHAR(32) DEFAULT NULL,
 			dau INT DEFAULT NULL,
 			fees INT DEFAULT NULL,
 			fdmc DOUBLE DEFAULT NULL,
-			volume_traded DOUBLE DEFAULT NULL,
+			volume_24h_usd DOUBLE DEFAULT NULL,
 			price DOUBLE DEFAULT NULL,
 			transactions INT DEFAULT NULL,
 			revenue DOUBLE DEFAULT NULL,
 			avg_txn_fee DOUBLE DEFAULT NULL,
+			mau INT DEFAULT NULL,
 			dau_over_100 INT DEFAULT NULL,
 			dex_volume DOUBLE DEFAULT NULL,
 			tokenholders INT DEFAULT NULL,
@@ -418,7 +423,8 @@ table_data = {
 			weekly_dev_core INT DEFAULT NULL,
 			weekly_dev_sub INT DEFAULT NULL,
 			weekly_contracts_deployed INT DEFAULT NULL,
-			weekly_unique_contract_deployers
+			weekly_contract_deployers INT DEFAULT NULL,
+			weekly_unique_contract_deployers INT DEFAULT NULL,
 			UNIQUE (project_name, datestamp)
 	)
 	"""
