@@ -51,7 +51,7 @@ def calculate_sma(conn):
 
 	try:
 		with conn.cursor() as cursor:
-			cursor.execute("SELECT project_id, from_table, sector FROM v_all_unique_projects")
+			cursor.execute("SELECT project_id, from_table, sector FROM v_all_unique_projects WHERE sector IS NOT NULL")
 			result = cursor.fetchall()
 
 			for row in result:
