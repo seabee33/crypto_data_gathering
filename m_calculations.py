@@ -51,26 +51,23 @@ def calculate_sma(conn):
 
 	try:
 		with conn.cursor() as cursor:
-			cursor.execute("SELECT project_id, from_table, sector FROM v_all_unique_projects LIMIT 3")
+			cursor.execute("SELECT project_id, from_table, sector FROM v_all_unique_projects")
 			result = cursor.fetchall()
 
-
 			for row in result:
-				project_id,	table_name, sector = row
+				project_id,	from_table, sector = row
 				all_sma_data = []
 
-				if table_name == "art":
+				if from_table == "art_metric_data":
 					metrics = art_metrics
-					data_table_name = "art_metric_data"
-				elif table_name == "tt":
+				elif from_table == "tt_all_metrics_data":
 					metrics = tt_metrics
-					data_table_name = "tt_all_metrics_data"
 				else:
 					print("Something went badly wrong")
 					sys.exit(1)
 					
 				for save_as_metric, col_metric in metrics.items():
-					cursor.execute(f"SELECT datestamp,{col_metric} FROM {data_table_name} WHERE project_name='{project_id}' ORDER BY datestamp ASC")
+					cursor.execute(f"SELECT datestamp,{col_metric} FROM {from_table} WHERE project_name='{project_id}' ORDER BY datestamp ASC")
 					data = cursor.fetchall()
 
 					periods = [7,14,30,45,50,60,90]
