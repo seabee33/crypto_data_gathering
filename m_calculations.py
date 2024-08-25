@@ -87,9 +87,9 @@ def calculate_sma(conn):
 						for date, sma in values:
 							all_sma_data.append((project_id, sector, date, save_as_metric, period, sma))
 
-				# batch_size = 1000
-				# for size in range(0,len(all_sma_data), batch_size):
-				# 	batch = all_sma_data[size:size+batch_size]
+				batch_size = 1000
+				for size in range(0,len(all_sma_data), batch_size):
+					batch = all_sma_data[size:size+batch_size]
 				update_query = """
 				INSERT INTO cb_metric_sma
 				(project_id, sector, datestamp, metric_name, time_period, sma_value)
@@ -101,7 +101,7 @@ def calculate_sma(conn):
 				print(f"Updated SMA for {project_id}")
 
 	except Error as e:
-		print("Error: ", e)
+		print("Error: ", e, f" for project: {project_id}")
 
 	finally:
 		if conn.is_connected():
@@ -165,4 +165,4 @@ def calc_update_raw_table(conn):
 			conn.commit()
 
 	except Error as e:
-		print(f"Error: {e}")
+		print(f"Error: {e} for project: {project_id}")
