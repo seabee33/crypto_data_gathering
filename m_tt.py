@@ -164,8 +164,8 @@ def tt_update_project_metrics(cursor, conn, tt_api_key):
 					new_log_entry(conn, ("g", "token terminal", f"No new update for {project_id}"))
 
 			else:
-				print(f"Token Terminal API response code: {response.status_code}")
-				new_log_entry(conn, ("h", "token terminal", f"API response code: {response.status_code}"))
+				print(f"Token Terminal API response code: {response.status_code} for {project_id}")
+				new_log_entry(conn, ("h", "token terminal", f"API response code: {response.status_code}  for {project_id}"))
 		else:
 			# No data in table
 			url = f"https://api.tokenterminal.com/v2/projects/{project_id}/metrics"
