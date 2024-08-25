@@ -5,10 +5,10 @@ This is a bunch of python scripts to get data from multiple sources and gather t
 This was a project I worked on with an analyst from bloomberg
 
 Data References:
-- Artemis API = m_art.py
-- Artemis SnowFlake DB = m_art_snowflake.py
-- Bitformance CSV Sheets = m_bitformance.py
-- CryptoQuant = m_cq.py
+- Artemis API = m_art.py (Pull data from the API, store in local DB)
+- Artemis SnowFlake DB = m_art_snowflake.py (Pull data from db, store in local DB)
+- Bitformance CSV Sheets = m_bitformance.py (Pull data from multiple CSV sheet URLs, store in DB)
+- CryptoQuant = m_cq.py (WIP)
 - FRED (Federal Reserve Economic Data) = m_fred.py
 
 
