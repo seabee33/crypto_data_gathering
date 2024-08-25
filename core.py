@@ -12,11 +12,12 @@ counter = 1
 
 
 update_artemis = False
-update_token_terminal = False
-update_bitformance = True
+update_token_terminal = True
+update_bitformance = False
 update_fred = False
 update_smas = False
 update_cq = False
+update_main_table = True
 conn = mysql.connector.connect(host="localhost", database=db_name, user=db_username, password=db_password)
 
 try:
@@ -57,10 +58,6 @@ try:
 			# tt_update_all_market_sectors_list(cursor, conn, tt_api_key)
 			# new_log_entry(conn, ("g", "core", "Step 6/11"))
 
-			# If there is a new metric, do not update, if there is no difference, update
-			# new_log_entry(conn, ("g", "Core", "Step 7/11"))
-			# tt_update_project_list(cursor, conn, tt_api_key)
-   
 			# Apply market sector to project list
 			# tt_update_project_ids_with_market_sector(cursor, conn, tt_api_key)
 			# new_log_entry(conn, ("g", "core", "Step 8/11"))
@@ -85,6 +82,9 @@ try:
 		
 		if update_smas:
 			calculate_sma(conn)
+		
+		if update_main_table:
+			calc_update_raw_table(conn)
 		
 		if update_cq:
 			# Update exchange list
