@@ -10,11 +10,6 @@ db_name = os.getenv("DB_NAME")
 db_username = os.getenv("DB_USERNAME")
 db_password = os.getenv("LOCAL_DB_PASSWORD")
 
-
-conn = mysql.connector.connect(host="localhost", database=db_name, user=db_username, password=db_password)
-
-
-
 def calculate_sma(conn):
 	# art_metric_data
 	#left is name to save in table, right is column name to select from
@@ -87,7 +82,7 @@ def calculate_sma(conn):
 						for date, sma in values:
 							all_sma_data.append((project_id, sector, date, save_as_metric, period, sma))
 
-				batch_size = 1000
+				batch_size = 500
 				for size in range(0,len(all_sma_data), batch_size):
 					batch = all_sma_data[size:size+batch_size]
 				update_query = """
