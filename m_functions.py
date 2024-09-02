@@ -3,9 +3,8 @@
 from datetime import datetime
 from mysql.connector import Error
 
-
 # Example usage
-# new_log_entry(conn, ("G", "source," "Test message, ligma balls"))
+# new_log_entry(conn, ("G", "source," "Test message, action completed successfully"))
 def new_log_entry(conn, log_data):
 	try:
 		with conn.cursor() as cursor:
@@ -20,5 +19,3 @@ def new_log_entry(conn, log_data):
 		print(f"Error in log entry system: {e}")
 	except Exception as ex:
 		print(f"Unexpected error: {ex}")
-
-
