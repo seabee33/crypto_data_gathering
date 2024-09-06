@@ -51,24 +51,24 @@ try:
 		if update_artemis:
 			# ============ ARTEMIS ============
 			# Update all projects list
-			# art_update_all_projects_list(cursor, conn, api_query)
+			# art_update_all_projects_list(conn, api_query)
 
 			# # Get all available metric keys
-			# art_get_api_project_metrics(cursor, conn, api_query)
+			# art_get_api_project_metrics(conn, api_query)
 
 			# # Add wanted metrics to db from list
-			# art_add_selected_metrics(cursor, conn)
+			# art_add_selected_metrics(conn)
 
 			# # Update unique metrics table with every unique metric key
-			# art_update_unique_metrics_table(cursor, conn)
+			# art_update_unique_metrics_table(conn)
 
 			# Then update metric data itself
 			new_log_entry(conn, ("g", "Core", "Beginning update for artemis data"))
-			art_update_metric_data(cursor, conn, art_api_key)
+			art_update_metric_data(conn, art_api_key)
 			new_log_entry(conn, ("g", "Core", "Finished update for artemis data successfully"))
 
 			# Optional, update ecosystems (not projects)
-			#art_update_supported_ecosystems_from_api(cursor, conn, api_query)
+			#art_update_supported_ecosystems_from_api(conn, api_query)
 
 		if update_token_terminal:
 			new_log_entry(conn, ("g", "Core", "Beginning update for token terminal"))
