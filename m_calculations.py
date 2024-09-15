@@ -18,7 +18,7 @@ def calculate_sma(conn):
 		"avg_txn_fees": "avg_txn_fees", # not in TT
 		"circulating_supply": "circulating_supply",
 		"daily_txns": "daily_txns",
-		"dau": "dau",
+		"daa": "dau",
 		"dau_over_100": "dau_over_100", # not in TT
 		"dex_volume":"dex_volumes",  # not in TT
 		"fd_marketcap":"fdmc",
@@ -34,7 +34,7 @@ def calculate_sma(conn):
 		# tt_all_metrics_data
 		"tvl":"tvl",
 		"price":"price",
-		"dau":"user_dau",
+		"daa":"user_dau",
 		"daily_txns": "transaction_count",
 		"marketcap":"market_cap_circulating",
 		"revenue":"revenue",
@@ -82,7 +82,7 @@ def calculate_sma(conn):
 						for date, sma in values:
 							all_sma_data.append((project_id, sector, date, save_as_metric, period, sma))
 
-				batch_size = 500
+				batch_size = 1000
 				for size in range(0,len(all_sma_data), batch_size):
 					batch = all_sma_data[size:size+batch_size]
 				update_query = """
@@ -98,10 +98,6 @@ def calculate_sma(conn):
 	except Error as e:
 		print("Error: ", e, f" for project: {project_id}")
 
-	finally:
-		if conn.is_connected():
-			conn.close()
-
 
 def calc_update_raw_table(conn):
 	batch_size = 1000
@@ -111,7 +107,8 @@ def calc_update_raw_table(conn):
 			cursor.execute("SELECT datestamp, project_name, user_dau, fees, market_cap_circulating, market_cap_fully_diluted, price, transaction_count, revenue, transaction_fee_average, user_mau, tokenholders, tvl, token_trading_volume FROM tt_all_metrics_data WHERE user_dau IS NOT NULL AND user_dau != '0' AND fees IS NOT NULL AND fees != '0' ORDER BY datestamp DESC")
 			tt_api_table = cursor.fetchall()
 
-			cols = ["datestamp", "project_name", "dau", "fees", "mc", "fdmc", "price", "transactions", "revenue", "avg_txn_fee", "mau", "tokenholders", "tvl", "volume_24h_usd"]
+			# j_raw table column names
+			cols = ["datestamp", "project_name", "daa", "fees", "mc", "fdmc", "price", "transactions", "revenue", "avg_txn_fee", "maa", "tokenholders", "tvl", "volume_24h_usd"]
 			cols_str = ", ".join(cols)
 			placeholders = ", ".join(['%s'] * len(cols))
 			update_cols = ", ".join([f"{col}=VALUES({col})" for col in cols[2:]])
@@ -124,7 +121,8 @@ def calc_update_raw_table(conn):
 			cursor.execute("SELECT datestamp, project_name, dau, fees, mc, fdmc, price, daily_txns, revenue, avg_txn_fees, dau_over_100, dex_volumes, tvl, stablecoin_mc, volume_24h FROM art_metric_data WHERE dau IS NOT NULL AND dau != '0' AND fees IS NOT NULL AND fees != '0' ORDER BY datestamp DESC")
 			art_api_table = cursor.fetchall()
 
-			cols = ["datestamp", "project_name", "dau", "fees", "mc", "fdmc", "price", "transactions", "revenue", "avg_txn_fee", "dau_over_100", "dex_volume", "tvl", "stablecoin_mc", "volume_24h_usd"]
+			# j_raw table column names
+			cols = ["datestamp", "project_name", "daa", "fees", "mc", "fdmc", "price", "transactions", "revenue", "avg_txn_fee", "dau_over_100", "dex_volume", "tvl", "stablecoin_mc", "volume_24h_usd"]
 			cols_str = ", ".join(cols)
 			placeholders = ", ".join(['%s'] * len(cols))
 			update_cols = ", ".join([f"{col}=VALUES({col})" for col in cols[2:]])
@@ -137,7 +135,8 @@ def calc_update_raw_table(conn):
 			cursor.execute("SELECT datestamp, project_name, dau, fees, market_cap, fdmc, price, txns, revenue, avg_txn_fee, dau_over_100, mau, dex_volumes, tokenholder_count, tvl, stablecoin_total_supply, weekly_commits_core_ecosystem, weekly_commits_sub_ecosystem, weekly_contracts_deployed, weekly_contract_deployers, weekly_developers_core_ecosystem, weekly_developers_sub_ecosystem FROM art_sf_raw_data WHERE dau IS NOT NULL AND dau != '0' AND fees IS NOT NULL AND fees != '0' ORDER BY datestamp DESC")
 			art_sf_table = cursor.fetchall()
 
-			cols = ["datestamp", "project_name", "dau", "fees", "mc", "fdmc", "price", "transactions", "revenue", "avg_txn_fee", "dau_over_100", "mau", "dex_volume", "tokenholders", "tvl", "stablecoin_mc", "weekly_commits_core", "weekly_commits_sub", "weekly_contracts_deployed", "weekly_contract_deployers", "weekly_dev_core", "weekly_dev_sub"]
+			# j_raw table column names
+			cols = ["datestamp", "project_name", "daa", "fees", "mc", "fdmc", "price", "transactions", "revenue", "avg_txn_fee", "dau_over_100", "maa", "dex_volume", "tokenholders", "tvl", "stablecoin_mc", "weekly_commits_core", "weekly_commits_sub", "weekly_contracts_deployed", "weekly_contract_deployers", "weekly_dev_core", "weekly_dev_sub"]
 			cols_str = ", ".join(cols)
 			placeholders = ", ".join(['%s'] * len(cols))
 			update_cols = ", ".join([f"{col}=VALUES({col})" for col in cols[2:]])
@@ -160,4 +159,4 @@ def calc_update_raw_table(conn):
 			conn.commit()
 
 	except Error as e:
-		print(f"Error: {e} for project: {project_id}")
+		print(f"Error: {e}")
