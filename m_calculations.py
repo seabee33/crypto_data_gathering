@@ -19,7 +19,7 @@ def calculate_sma(conn):
 		"circulating_supply": "circulating_supply",
 		"daily_txns": "daily_txns",
 		"daa": "dau",
-		"dau_over_100": "dau_over_100", # not in TT
+		"daa_over_100": "dau_over_100", # not in TT
 		"dex_volume":"dex_volumes",  # not in TT
 		"fd_marketcap":"fdmc",
 		"fees":"fees",
@@ -122,7 +122,7 @@ def calc_update_raw_table(conn):
 			art_api_table = cursor.fetchall()
 
 			# j_raw table column names
-			cols = ["datestamp", "project_name", "daa", "fees", "mc", "fdmc", "price", "transactions", "revenue", "avg_txn_fee", "dau_over_100", "dex_volume", "tvl", "stablecoin_mc", "volume_24h_usd"]
+			cols = ["datestamp", "project_name", "daa", "fees", "mc", "fdmc", "price", "transactions", "revenue", "avg_txn_fee", "daa_over_100", "dex_volume", "tvl", "stablecoin_mc", "volume_24h_usd"]
 			cols_str = ", ".join(cols)
 			placeholders = ", ".join(['%s'] * len(cols))
 			update_cols = ", ".join([f"{col}=VALUES({col})" for col in cols[2:]])
@@ -136,7 +136,7 @@ def calc_update_raw_table(conn):
 			art_sf_table = cursor.fetchall()
 
 			# j_raw table column names
-			cols = ["datestamp", "project_name", "daa", "fees", "mc", "fdmc", "price", "transactions", "revenue", "avg_txn_fee", "dau_over_100", "maa", "dex_volume", "tokenholders", "tvl", "stablecoin_mc", "weekly_commits_core", "weekly_commits_sub", "weekly_contracts_deployed", "weekly_contract_deployers", "weekly_dev_core", "weekly_dev_sub"]
+			cols = ["datestamp", "project_name", "daa", "fees", "mc", "fdmc", "price", "transactions", "revenue", "avg_txn_fee", "daa_over_100", "maa", "dex_volume", "tokenholders", "tvl", "stablecoin_mc", "weekly_commits_core", "weekly_commits_sub", "weekly_contracts_deployed", "weekly_contract_deployers", "weekly_dev_core", "weekly_dev_sub"]
 			cols_str = ", ".join(cols)
 			placeholders = ", ".join(['%s'] * len(cols))
 			update_cols = ", ".join([f"{col}=VALUES({col})" for col in cols[2:]])
