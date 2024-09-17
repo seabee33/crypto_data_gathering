@@ -1,4 +1,3 @@
-update project names to be capital first letter
 fix matching so bsc is not binance-smart-chain
 j_raw both columns from, art and tt
 blue ones to add to jraw
