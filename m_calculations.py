@@ -150,14 +150,14 @@ def calc_update_raw_table(conn):
 
 			# Update sector info
 
-			update_sectors = """
-				UPDATE j_raw r
-				JOIN v_all_unique_projects p ON p.project_id = r.project_name
-				SET r.sector = p.sector
-				WHERE r.sector IS NULL OR r.sector <> p.sector
-			"""
-			cursor.execute(update_sectors)
-			conn.commit()
+			# update_sectors = """
+			# 	UPDATE j_raw r
+			# 	JOIN v_all_unique_projects p ON p.project_id = r.project_name
+			# 	SET r.sector = p.sector
+			# 	WHERE r.sector IS NULL OR r.sector <> p.sector
+			# """
+			# cursor.execute(update_sectors)
+			# conn.commit()
 
 	except Error as e:
 		print(f"Error: {e}")
