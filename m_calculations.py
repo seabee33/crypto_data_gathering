@@ -99,16 +99,17 @@ def calculate_sma(conn):
 		print("Error: ", e, f" for project: {project_id}")
 
 
+# Update raw table
 def calc_update_raw_table(conn):
 	batch_size = 1000
 	try:
 		with conn.cursor() as cursor:
 			# Token Terminal table
-			cursor.execute("SELECT datestamp, project_name, user_dau, fees, market_cap_circulating, market_cap_fully_diluted, price, transaction_count, revenue, transaction_fee_average, user_mau, tokenholders, tvl, token_trading_volume FROM tt_all_metrics_data WHERE user_dau IS NOT NULL AND user_dau != '0' AND fees IS NOT NULL AND fees != '0' ORDER BY datestamp DESC")
+			cursor.execute("SELECT datestamp, project_name, user_dau, fees, market_cap_circulating, market_cap_fully_diluted, price, transaction_count, revenue, transaction_fee_average, user_mau, tokenholders, tvl, token_trading_volume, active_developers, active_loans, earnings, gross_profit, token_supply_circulating, token_incentives, token_supply_maximum, active_addresses_weekly FROM tt_all_metrics_data WHERE user_dau IS NOT NULL AND user_dau != '0' AND fees IS NOT NULL AND fees != '0' ORDER BY datestamp DESC")
 			tt_api_table = cursor.fetchall()
 
 			# j_raw table column names
-			cols = ["datestamp", "project_name", "daa", "fees", "mc", "fdmc", "price", "transactions", "revenue", "avg_txn_fee", "maa", "tokenholders", "tvl", "volume_24h_usd"]
+			cols = ["datestamp", "project_name", "daa", "fees", "mc", "fdmc", "price", "transactions", "revenue", "avg_txn_fee", "maa", "tokenholders", "tvl", "volume_24h_usd", "active_developers", "active_loans", "earnings", "gross_profit", "token_supply_circulating", "token_incentives", "token_supply_maximum", "active_addresses_weekly"]
 			cols_str = ", ".join(cols)
 			placeholders = ", ".join(['%s'] * len(cols))
 			update_cols = ", ".join([f"{col}=VALUES({col})" for col in cols[2:]])
