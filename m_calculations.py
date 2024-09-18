@@ -99,14 +99,60 @@ def calculate_sma(conn):
 		print("Error: ", e, f" for project: {project_id}")
 
 
+def custom_project_names(project_name):
+	custom_name_mapping = {
+		# Left is taking in, right is being returned
+		"binance-smart-chain":"BSC",
+		"near":"NEAR"
+	}
+
+	if project_name in custom_name_mapping:
+		return custom_name_mapping[project_name]
+
+	if project_name[0].isalpha():
+		return project_name[0].upper() + project_name[1:]
+
+
 # Update raw table
 def calc_update_raw_table(conn):
+	name_mapping = {
+		# Left is Artemis, right is token terminal
+		# result will be on the right
+		"akash":"akash-network",
+		"arbitrum_one_bridge": "arbitrum-bridge",
+		"axelar":"axelarnetwork",
+		"bsc":"binance-smart-chain",
+		"drift":"drift-protocol",
+		"frax":"frax-finance",
+		"immutable_x":"immutable",
+		"internet-computer":"internetcomputer",
+		"lido":"lido-finance",
+		"maverick_protocol":"maverick",
+		"near":"near-protocol",
+		"rabbit-x":"rabbitx",
+		"rocketpool":"rocket-pool",
+		"sei":"sei-network",
+		"trader_joe":"trader-joe",
+		"zksync":"zksync-era",
+		"zksync_era_bridge":"zksync-era-bridge"
+	}
+
 	batch_size = 1000
 	try:
 		with conn.cursor() as cursor:
 			# Token Terminal table
-			cursor.execute("SELECT datestamp, project_name, user_dau, fees, market_cap_circulating, market_cap_fully_diluted, price, transaction_count, revenue, transaction_fee_average, user_mau, tokenholders, tvl, token_trading_volume, active_developers, active_loans, earnings, gross_profit, token_supply_circulating, token_incentives, token_supply_maximum, active_addresses_weekly FROM tt_all_metrics_data WHERE user_dau IS NOT NULL AND user_dau != '0' AND fees IS NOT NULL AND fees != '0' ORDER BY datestamp DESC")
+			cursor.execute("SELECT datestamp, project_id, user_dau, fees, market_cap_circulating, market_cap_fully_diluted, price, transaction_count, revenue, transaction_fee_average, user_mau, tokenholders, tvl, token_trading_volume, active_developers, active_loans, earnings, gross_profit, token_supply_circulating, token_incentives, token_supply_maximum, active_addresses_weekly FROM tt_all_metrics_data WHERE user_dau > 0 AND fees > 0 ORDER BY datestamp DESC")
 			tt_api_table = cursor.fetchall()
+
+			tt_normalised = []
+			for row in tt_api_table:
+				datestamp = row[0]
+				project_id = row[1]
+				tt_normalised_project_name = name_mapping.get(project_id, project_id)
+				tt_metric_data = row[2:]
+				tt_normalised_row = (datestamp, tt_normalised_project_name) + tt_metric_data
+				tt_normalised.append(tt_normalised_row)
+			tt_api_table = tt_normalised
 
 			# j_raw table column names
 			cols = ["datestamp", "project_name", "daa", "fees", "mc", "fdmc", "price", "transactions", "revenue", "avg_txn_fee", "maa", "tokenholders", "tvl", "volume_24h_usd", "active_developers", "active_loans", "earnings", "gross_profit", "token_supply_circulating", "token_incentives", "token_supply_maximum", "active_addresses_weekly"]
@@ -118,12 +164,23 @@ def calc_update_raw_table(conn):
 				cursor.executemany(f"INSERT INTO j_raw ({cols_str}) VALUES ({placeholders}) ON DUPLICATE KEY UPDATE {update_cols}", tt_api_table[i:i+batch_size])
 			print("Updated token terminal")
 
+
 			# Artemis API table
-			cursor.execute("SELECT datestamp, project_name, dau, fees, mc, fdmc, price, daily_txns, revenue, avg_txn_fees, dau_over_100, dex_volumes, tvl, stablecoin_mc, volume_24h FROM art_metric_data WHERE dau IS NOT NULL AND dau != '0' AND fees IS NOT NULL AND fees != '0' ORDER BY datestamp DESC")
+			cursor.execute("SELECT datestamp, project_name, dau, fees, mc, fdmc, price, daily_txns, revenue, avg_txn_fees, dau_over_100, dex_volumes, tvl, stablecoin_mc, volume_24h, circulating_supply FROM art_metric_data WHERE dau > 0 AND fees > 0 ORDER BY datestamp DESC")
 			art_api_table = cursor.fetchall()
 
+			art_api_normalised = []
+			for row in art_api_table:
+				datestamp = row[0]
+				project_id = row[1]
+				art_api_normalised_project_name = name_mapping.get(project_id, project_id)
+				art_api_metric_data = row[2:]
+				art_api_normalised_row = (datestamp, art_api_normalised_project_name) + art_api_metric_data
+				art_api_normalised.append(art_api_normalised_row)
+			art_api_table = art_api_normalised
+
 			# j_raw table column names
-			cols = ["datestamp", "project_name", "daa", "fees", "mc", "fdmc", "price", "transactions", "revenue", "avg_txn_fee", "daa_over_100", "dex_volume", "tvl", "stablecoin_mc", "volume_24h_usd"]
+			cols = ["datestamp", "project_name", "daa", "fees", "mc", "fdmc", "price", "transactions", "revenue", "avg_txn_fee", "daa_over_100", "dex_volume", "tvl", "stablecoin_mc", "volume_24h_usd", "circulating_supply"]
 			cols_str = ", ".join(cols)
 			placeholders = ", ".join(['%s'] * len(cols))
 			update_cols = ", ".join([f"{col}=VALUES({col})" for col in cols[2:]])
@@ -133,8 +190,18 @@ def calc_update_raw_table(conn):
 			print("Updated artemis (API)")
 
 			# Artemis SF table
-			cursor.execute("SELECT datestamp, project_name, dau, fees, market_cap, fdmc, price, txns, revenue, avg_txn_fee, dau_over_100, mau, dex_volumes, tokenholder_count, tvl, stablecoin_total_supply, weekly_commits_core_ecosystem, weekly_commits_sub_ecosystem, weekly_contracts_deployed, weekly_contract_deployers, weekly_developers_core_ecosystem, weekly_developers_sub_ecosystem FROM art_sf_raw_data WHERE dau IS NOT NULL AND dau != '0' AND fees IS NOT NULL AND fees != '0' ORDER BY datestamp DESC")
+			cursor.execute("SELECT datestamp, project_name, dau, fees, market_cap, fdmc, price, txns, revenue, avg_txn_fee, dau_over_100, mau, dex_volumes, tokenholder_count, tvl, stablecoin_total_supply, weekly_commits_core_ecosystem, weekly_commits_sub_ecosystem, weekly_contracts_deployed, weekly_contract_deployers, weekly_developers_core_ecosystem, weekly_developers_sub_ecosystem FROM art_sf_raw_data WHERE dau > 0 AND fees > 0 ORDER BY datestamp DESC")
 			art_sf_table = cursor.fetchall()
+
+			art_sf_normalised = []
+			for row in art_sf_table:
+				datestamp = row[0]
+				project_id = row[1]
+				art_sf_normalised_project_name = name_mapping.get(project_id, project_id)
+				art_sf_metric_data = row[2:]
+				art_sf_normalised_row = (datestamp, art_sf_normalised_project_name) + art_sf_metric_data
+				art_sf_normalised.append(art_sf_normalised_row)
+			art_sf_table = art_sf_normalised
 
 			# j_raw table column names
 			cols = ["datestamp", "project_name", "daa", "fees", "mc", "fdmc", "price", "transactions", "revenue", "avg_txn_fee", "daa_over_100", "maa", "dex_volume", "tokenholders", "tvl", "stablecoin_mc", "weekly_commits_core", "weekly_commits_sub", "weekly_contracts_deployed", "weekly_contract_deployers", "weekly_dev_core", "weekly_dev_sub"]
@@ -149,7 +216,6 @@ def calc_update_raw_table(conn):
 			conn.commit()
 
 			# Update sector info
-
 			# update_sectors = """
 			# 	UPDATE j_raw r
 			# 	JOIN v_all_unique_projects p ON p.project_id = r.project_name
