@@ -11,23 +11,23 @@ db_username = os.getenv("DB_USERNAME")
 db_password = os.getenv("LOCAL_DB_PASSWORD")
 
 # Artemis
-update_art_sf = True
-update_artemis = True
+update_art_sf = False
+update_artemis = False
 
 # Token Terminal
-update_token_terminal = True
+update_token_terminal = False
 
 # Bitformance
-update_bitformance = True
+update_bitformance = False
 
 # FRED
-update_fred = True
+update_fred = False
 
 # Crypto Quant
 update_cq = False
 
 # Calculations
-update_smas = True
+update_smas = False
 update_main_table = True
 
 
