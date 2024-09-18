@@ -150,7 +150,7 @@ def calc_update_raw_table(conn):
 				project_id = row[1]
 				tt_normalised_project_name = name_mapping.get(project_id, project_id)
 				tt_metric_data = row[2:]
-				tt_normalised_row = (datestamp, tt_normalised_project_name) + tt_metric_data
+				tt_normalised_row = (datestamp, custom_project_names(tt_normalised_project_name)) + tt_metric_data
 				tt_normalised.append(tt_normalised_row)
 			tt_api_table = tt_normalised
 
@@ -175,7 +175,7 @@ def calc_update_raw_table(conn):
 				project_id = row[1]
 				art_api_normalised_project_name = name_mapping.get(project_id, project_id)
 				art_api_metric_data = row[2:]
-				art_api_normalised_row = (datestamp, art_api_normalised_project_name) + art_api_metric_data
+				art_api_normalised_row = (datestamp, custom_project_names(art_api_normalised_project_name)) + art_api_metric_data
 				art_api_normalised.append(art_api_normalised_row)
 			art_api_table = art_api_normalised
 
@@ -199,7 +199,7 @@ def calc_update_raw_table(conn):
 				project_id = row[1]
 				art_sf_normalised_project_name = name_mapping.get(project_id, project_id)
 				art_sf_metric_data = row[2:]
-				art_sf_normalised_row = (datestamp, art_sf_normalised_project_name) + art_sf_metric_data
+				art_sf_normalised_row = (datestamp, custom_project_names(art_sf_normalised_project_name)) + art_sf_metric_data
 				art_sf_normalised.append(art_sf_normalised_row)
 			art_sf_table = art_sf_normalised
 
@@ -216,14 +216,14 @@ def calc_update_raw_table(conn):
 			conn.commit()
 
 			# Update sector info
-			# update_sectors = """
-			# 	UPDATE j_raw r
-			# 	JOIN v_all_unique_projects p ON p.project_id = r.project_name
-			# 	SET r.sector = p.sector
-			# 	WHERE r.sector IS NULL OR r.sector <> p.sector
-			# """
-			# cursor.execute(update_sectors)
-			# conn.commit()
+			update_sectors = """
+				UPDATE j_raw r
+				JOIN v_all_unique_projects p ON p.project_id = r.project_name
+				SET r.sector = p.sector
+				WHERE r.sector IS NULL OR r.sector <> p.sector
+			"""
+			cursor.execute(update_sectors)
+			conn.commit()
 
 	except Error as e:
 		print(f"Error: {e}")
