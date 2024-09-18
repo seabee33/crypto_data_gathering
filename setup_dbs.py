@@ -361,7 +361,7 @@ table_data = {
 			avg_txn_fee DOUBLE DEFAULT NULL,
 			active_developers INT DEFAULT NULL,
 			active_addresses_weekly INT DEFAULT NULL,
-			active_loans INT DEFAULT NULL,
+			active_loans DOUBLE DEFAULT NULL,
 			circulating_supply DOUBLE DEFAULT NULL,
 			daa INT DEFAULT NULL,
 			daa_over_100 INT DEFAULT NULL,
