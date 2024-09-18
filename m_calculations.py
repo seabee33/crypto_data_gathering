@@ -221,7 +221,7 @@ def calc_update_raw_table(conn):
 			tvl, tvl, 
 			stablecoin_mc, stablecoin_mc, 
 			volume_24h, volume_24h, 
-			circulating_supply, circulating_supply, 
+			circulating_supply, circulating_supply 
 			FROM art_metric_data WHERE dau > 0 AND fees > 0 ORDER BY datestamp DESC""")
 			art_api_table = cursor.fetchall()
 
@@ -260,7 +260,25 @@ def calc_update_raw_table(conn):
 			print("Updated artemis (API)")
 
 			# Artemis SF table
-			cursor.execute("SELECT datestamp, project_name, dau, fees, market_cap, fdmc, price, txns, revenue, avg_txn_fee, dau_over_100, mau, dex_volumes, tokenholder_count, tvl, stablecoin_total_supply, weekly_commits_core_ecosystem, weekly_commits_sub_ecosystem, weekly_contracts_deployed, weekly_contract_deployers, weekly_developers_core_ecosystem, weekly_developers_sub_ecosystem FROM art_sf_raw_data WHERE dau > 0 AND fees > 0 ORDER BY datestamp DESC")
+			cursor.execute("""SELECT datestamp, project_name, 
+			dau, 
+			fees, 
+			market_cap, 
+			fdmc, price, 
+			txns, 
+			revenue, 
+			avg_txn_fee, 
+			dau_over_100, 
+			mau, dex_volumes, 
+			tokenholder_count, 
+			tvl, 
+			stablecoin_total_supply, 
+			weekly_commits_core_ecosystem, weekly_commits_core_ecosystem, 
+			weekly_commits_sub_ecosystem, weekly_commits_sub_ecosystem, 
+			weekly_contracts_deployed, weekly_contracts_deployed, 
+			weekly_contract_deployers, weekly_contract_deployers, 
+			weekly_developers_core_ecosystem, weekly_developers_core_ecosystem, weekly_developers_sub_ecosystem, weekly_developers_sub_ecosystem 
+			FROM art_sf_raw_data WHERE dau > 0 AND fees > 0 ORDER BY datestamp DESC""")
 			art_sf_table = cursor.fetchall()
 
 			art_sf_normalised = []
@@ -274,7 +292,27 @@ def calc_update_raw_table(conn):
 			art_sf_table = art_sf_normalised
 
 			# j_raw table column names
-			cols = ["datestamp", "project_name", "daa", "fees", "mc", "fdmc", "price", "transactions", "revenue", "avg_txn_fee", "daa_over_100", "maa", "dex_volume", "tokenholders", "tvl", "stablecoin_mc", "weekly_commits_core", "weekly_commits_sub", "weekly_contracts_deployed", "weekly_contract_deployers", "weekly_dev_core", "weekly_dev_sub"]
+			cols = ["datestamp", "project_name", 
+			"daa", 
+			"fees", 
+			"mc", 
+			"fdmc", 
+			"price", 
+			"transactions", 
+			"revenue", 
+			"avg_txn_fee", 
+			"daa_over_100", 
+			"maa", 
+			"dex_volume", 
+			"tokenholders", 
+			"tvl", 
+			"stablecoin_mc", "stablecoin_mc_a", 
+			"weekly_commits_core", "weekly_commits_core_a", 
+			"weekly_commits_sub", "weekly_commits_sub_a", 
+			"weekly_contracts_deployed", "weekly_contracts_deployed_a", 
+			"weekly_contract_deployers", "weekly_contract_deployers_a", 
+			"weekly_dev_core", "weekly_dev_core_a", 
+			"weekly_dev_sub", "weekly_dev_sub_a"]
 			cols_str = ", ".join(cols)
 			placeholders = ", ".join(['%s'] * len(cols))
 			update_cols = ", ".join([f"{col}=VALUES({col})" for col in cols[2:]])
