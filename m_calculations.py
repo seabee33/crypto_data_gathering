@@ -141,7 +141,28 @@ def calc_update_raw_table(conn):
 	try:
 		with conn.cursor() as cursor:
 			# Token Terminal table
-			cursor.execute("SELECT datestamp, project_id, user_dau, fees, market_cap_circulating, market_cap_fully_diluted, price, transaction_count, revenue, transaction_fee_average, user_mau, tokenholders, tvl, token_trading_volume, active_developers, active_loans, earnings, gross_profit, token_supply_circulating, token_incentives, token_supply_maximum, active_addresses_weekly FROM tt_all_metrics_data WHERE user_dau > 0 AND fees > 0 ORDER BY datestamp DESC")
+			cursor.execute("""SELECT datestamp, project_id, 
+			user_dau, user_dau, 
+			fees, fees, 
+			market_cap_circulating, market_cap_circulating, 
+			market_cap_fully_diluted, market_cap_fully_diluted, 
+			price, price, 
+			transaction_count, transaction_count, 
+			revenue, revenue, 
+			transaction_fee_average, transaction_fee_average, 
+			user_mau, user_mau, 
+			tokenholders, tokenholders, 
+			tvl, tvl, 
+			token_trading_volume, token_trading_volume, 
+			active_developers, active_developers, 
+			active_loans, active_loans, 
+			earnings, earnings, 
+			gross_profit, gross_profit, 
+			token_supply_circulating, token_supply_circulating, 
+			token_incentives, token_incentives, 
+			token_supply_maximum, token_supply_maximum, 
+			active_addresses_weekly, active_addresses_weekly 
+			FROM tt_all_metrics_data WHERE user_dau > 0 AND fees > 0 ORDER BY datestamp DESC""")
 			tt_api_table = cursor.fetchall()
 
 			tt_normalised = []
@@ -155,7 +176,27 @@ def calc_update_raw_table(conn):
 			tt_api_table = tt_normalised
 
 			# j_raw table column names
-			cols = ["datestamp", "project_name", "daa", "fees", "mc", "fdmc", "price", "transactions", "revenue", "avg_txn_fee", "maa", "tokenholders", "tvl", "volume_24h_usd", "active_developers", "active_loans", "earnings", "gross_profit", "token_supply_circulating", "token_incentives", "token_supply_maximum", "active_addresses_weekly"]
+			cols = ["datestamp", "project_name", 
+					"daa", "daa_t", 
+					"fees", "fees_t", 
+					"mc", "mc_t", 
+					"fdmc", "fdmc_t", 
+					"price", "price_t", 
+					"transactions", "transactions_t", 
+					"revenue", "revenue_t", 
+					"avg_txn_fee", "avg_txn_fee_t", 
+					"maa", "maa_t", 
+					"tokenholders", "tokenholders_t", 
+					"tvl", "tvl_t", 
+					"volume_24h_usd", "volume_24h_usd_t", 
+					"active_developers", "active_developers_t", 
+					"active_loans", "active_loans_t", 
+					"earnings", "earnings_t", 
+					"gross_profit", "gross_profit_t", 
+					"token_supply_circulating", "token_supply_circulating_t", 
+					"token_incentives", "token_incentives_t", 
+					"token_supply_maximum", "token_supply_maximum_t", 
+					"active_addresses_weekly", "active_addresses_weekly_t"]
 			cols_str = ", ".join(cols)
 			placeholders = ", ".join(['%s'] * len(cols))
 			update_cols = ", ".join([f"{col}=VALUES({col})" for col in cols[2:]])
@@ -166,7 +207,22 @@ def calc_update_raw_table(conn):
 
 
 			# Artemis API table
-			cursor.execute("SELECT datestamp, project_name, dau, fees, mc, fdmc, price, daily_txns, revenue, avg_txn_fees, dau_over_100, dex_volumes, tvl, stablecoin_mc, volume_24h, circulating_supply FROM art_metric_data WHERE dau > 0 AND fees > 0 ORDER BY datestamp DESC")
+			cursor.execute("""SELECT datestamp, project_name, 
+			dau, dau, 
+			fees, fees, 
+			mc, mc, 
+			fdmc, fdmc, 
+			price, price, 
+			daily_txns, daily_txns, 
+			revenue, revenue, 
+			avg_txn_fees, avg_txn_fees, 
+			dau_over_100, dau_over_100, 
+			dex_volumes, dex_volumes, 
+			tvl, tvl, 
+			stablecoin_mc, stablecoin_mc, 
+			volume_24h, volume_24h, 
+			circulating_supply, circulating_supply, 
+			FROM art_metric_data WHERE dau > 0 AND fees > 0 ORDER BY datestamp DESC""")
 			art_api_table = cursor.fetchall()
 
 			art_api_normalised = []
@@ -180,7 +236,21 @@ def calc_update_raw_table(conn):
 			art_api_table = art_api_normalised
 
 			# j_raw table column names
-			cols = ["datestamp", "project_name", "daa", "fees", "mc", "fdmc", "price", "transactions", "revenue", "avg_txn_fee", "daa_over_100", "dex_volume", "tvl", "stablecoin_mc", "volume_24h_usd", "circulating_supply"]
+			cols = ["datestamp", "project_name", 
+			"daa", "daa_a", 
+			"fees", "fees_a", 
+			"mc", "mc_a", 
+			"fdmc", "fdmc_a", 
+			"price", "price_a", 
+			"transactions", "transactions_a", 
+			"revenue", "revenue_a", 
+			"avg_txn_fee", "avg_txn_fee_a", 
+			"daa_over_100", "daa_over_100_a", 
+			"dex_volume", "dex_volume_a", 
+			"tvl", "tvl_a", 
+			"stablecoin_mc", "stablecoin_mc_a", 
+			"volume_24h_usd", "volume_24h_usd_a", 
+			"circulating_supply", "circulating_supply_a"]
 			cols_str = ", ".join(cols)
 			placeholders = ", ".join(['%s'] * len(cols))
 			update_cols = ", ".join([f"{col}=VALUES({col})" for col in cols[2:]])
