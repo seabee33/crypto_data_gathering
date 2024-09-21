@@ -6,6 +6,7 @@ from m_fred import *
 from m_calculations import *
 from m_cq import *
 from m_art_snowflake import *
+from m_defi_llama import *
 db_name = os.getenv("DB_NAME")
 db_username = os.getenv("DB_USERNAME")
 db_password = os.getenv("LOCAL_DB_PASSWORD")
