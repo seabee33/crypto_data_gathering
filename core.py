@@ -20,6 +20,9 @@ update_token_terminal = False
 # Bitformance
 update_bitformance = False
 
+# Defi Llama
+update_defi_llama = True
+
 # FRED
 update_fred = False
 
@@ -99,6 +102,11 @@ try:
 			new_log_entry(conn, ("g", "Core", "Beginning update for fred data"))
 			fred_update_data(conn)
 			new_log_entry(conn, ("g", "Core", "Finished update for fred successfully"))
+		
+		if update_defi_llama:
+			new_log_entry(conn, ("g", "Core", "Beginning update for Defi Llama data"))
+			dl_update_project_raw_data(conn)
+			new_log_entry(conn, ("g", "Core", "Finished update for Defi Llama successfully"))
 		
 		if update_smas:
 			new_log_entry(conn, ("g", "Core", "Beginning update for SMA"))
