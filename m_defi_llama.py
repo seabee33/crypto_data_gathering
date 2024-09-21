@@ -7,8 +7,6 @@ load_dotenv()
 db_name = os.getenv("DB_NAME")
 db_username = os.getenv("DB_USERNAME")
 db_password = os.getenv("LOCAL_DB_PASSWORD")
-conn = mysql.connector.connect(host="localhost", database=db_name, user=db_username, password=db_password)
-
 
 # Get project slug from local db
 def dl_get_existing_project_ids(conn):
@@ -21,6 +19,7 @@ def dl_get_existing_project_ids(conn):
 	except Error as e:
 		print("sr, error getting local db projects")
 
+# Checks if latest datestamp is 2 days ago
 def dl_check_if_data_is_up_to_date(conn, project):
 	try:
 		with conn.cursor() as cursor:
@@ -40,6 +39,8 @@ def dl_check_if_data_is_up_to_date(conn, project):
 	except Error as e:
 		print("dl - error getting project update date")
 
+
+# Update defi llama raw fee data
 def dl_update_project_raw_data(conn):
 	try:
 		with conn.cursor() as cursor:
@@ -86,4 +87,3 @@ def dl_update_project_raw_data(conn):
 	except Error as e:
 		print(f"error updating defi llama data: {e}")
 
-dl_update_project_raw_data(conn)
