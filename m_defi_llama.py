@@ -75,7 +75,7 @@ def dl_update_project_list(conn):
 			data = response.json()
 			data = data["protocols"]
 
-			value_to_check = 3000
+			value_to_check = 1000
 			project_list = []
 			excluded_categories = ["Chain", "Rollup"]
 			excluded_projects = ["tether"]
@@ -199,6 +199,7 @@ def dl_update_project_raw_data(conn):
 		print(f"error updating defi llama data: {e}")
 
 
+
 def dl_setup_dapp_calc(conn):
 	try:
 		with conn.cursor() as cursor:
@@ -208,9 +209,12 @@ def dl_setup_dapp_calc(conn):
 		print(e)
 
 
+# This part is incredibily inefficient and needs to be fixed
 def dl_calculate_dapps_greater_then_x(conn):
+	monthly_filter_value = 1000
 	try:
 		with conn.cursor() as cursor:
+
 			print("wiping calc table")
 			cursor.execute("TRUNCATE dl_dapp_calc")
 			print("inserting dates")
@@ -246,17 +250,20 @@ def dl_calculate_dapps_greater_then_x(conn):
 						cursor.execute(f"SELECT sum({chain}) from dl_dapp_fees_raw WHERE project_id='{dapp}' AND datestamp BETWEEN '{temp_thirty_days}' AND '{temp_two_days}'")
 						monthly_total = cursor.fetchone()[0]
 
-						if monthly_total and monthly_total > 3000:
+						if monthly_total and monthly_total > monthly_filter_value:
 							# print(f"Executing2: SELECT {chain} FROM dl_dapp_fees_raw WHERE datestamp = '{temp_two_days}' AND project_id = '{dapp}' ORDER BY datestamp DESC")
 							cursor.execute(f"SELECT {chain} FROM dl_dapp_fees_raw WHERE datestamp = '{temp_two_days}' AND project_id = '{dapp}' ORDER BY datestamp DESC")
 							data = cursor.fetchone()
 							data_value = data[0] if data is not None else None
+							count = 1 if data is not None else 0
 							# print(f"Data for {dapp} on {temp_two_days} for {chain}: {data_value}")
 
 							#update deez nuts
-							update_query = f"UPDATE dl_dapp_calc SET {chain} = COALESCE({chain}, 0) + COALESCE(%s,0) WHERE datestamp=%s"
+							update_fee_query = f"UPDATE dl_dapp_calc SET {chain} = COALESCE({chain}, 0) + COALESCE(%s,0) WHERE datestamp=%s"
+							update_dapp_query = f"UPDATE dl_dapp_calc SET {chain}_c = COALESCE({chain}_c, 0) + %s WHERE datestamp=%s"
 							# print(f"Executing3: {update_query}")
-							cursor.execute(update_query, (data_value, temp_two_days))
+							cursor.execute(update_fee_query, (data_value, temp_two_days))
+							cursor.execute(update_dapp_query, (count, temp_two_days))
 
 						temp_thirty_days -= timedelta(days=1)
 						temp_two_days -= timedelta(days=1)
@@ -267,5 +274,10 @@ def dl_calculate_dapps_greater_then_x(conn):
 		print(e)
 
 
-dl_calculate_dapps_greater_then_x(conn)
 
+def dl_update_defi_llama_tables(conn):
+	print("Updating projects list and raw data")
+	# dl_update_project_raw_data(conn)
+
+	print("Updating calc table")
+	dl_calculate_dapps_greater_then_x(conn)
