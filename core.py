@@ -22,7 +22,7 @@ update_token_terminal = False
 update_bitformance = False
 
 # Defi Llama
-update_defi_llama = True
+update_defi_llama = False
 
 # FRED
 update_fred = False
@@ -106,7 +106,7 @@ try:
 		
 		if update_defi_llama:
 			new_log_entry(conn, ("g", "Core", "Beginning update for Defi Llama data"))
-			dl_update_project_raw_data(conn)
+			dl_update_defi_llama_tables(conn)
 			new_log_entry(conn, ("g", "Core", "Finished update for Defi Llama successfully"))
 		
 		if update_smas:
