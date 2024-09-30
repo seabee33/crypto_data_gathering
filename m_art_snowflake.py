@@ -14,8 +14,7 @@ sf_db_pw = os.getenv("SNOWFLAKE_PW")
 sf_acc_id = os.getenv("SNOWFLAKE_ACC_ID")
 
 # Gets last update date for project
-def art_sf_get_last_update(project, col):
-	conn = mysql.connector.connect(host="localhost", database=db_name, user=db_username, password=db_password)
+def art_sf_get_last_update(project, col, conn):
 	with conn.cursor() as cursor:
 		cursor.execute(f"SELECT datestamp FROM art_sf_raw_data WHERE project_name='{project}' and {col} IS NOT NULL ORDER BY datestamp DESC LIMIT 1")
 		raw_data = cursor.fetchone()
@@ -155,7 +154,7 @@ def sf_art_update_raw_data(conn_sf, conn):
 		date_two_days_ago = (datetime.today() - timedelta(days=2)).strftime('%Y-%m-%d')
 		for project, params in project_list.items():
 			for table, sf_cols in params["sf_tables"].items():
-				last_update_m7 = art_sf_get_last_update(project, params["local_cols"][3])
+				last_update_m7 = art_sf_get_last_update(project, params["local_cols"][3], conn)
 				print(f"Updating {project} with data from {last_update_m7} to {date_two_days_ago}")
 				data_to_update = []
 				sf_cols_string = ", ".join(sf_cols)
@@ -165,12 +164,10 @@ def sf_art_update_raw_data(conn_sf, conn):
 				for row in data:
 					data_to_update.append((project,) + row)
 				
-				update_local_db(data_to_update, params["local_cols"])
+				update_local_db(data_to_update, params["local_cols"], conn)
 
 
-def update_local_db(data_to_update, local_cols):
-	conn = mysql.connector.connect(host="localhost", database=db_name, user=db_username, password=db_password)
-
+def update_local_db(data_to_update, local_cols, conn):
 	with conn.cursor() as cursor:
 		placeholders = ", ".join(["%s"] * len(local_cols))
 		local_cols_string = ", ".join(local_cols)
