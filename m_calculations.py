@@ -10,107 +10,25 @@ db_name = os.getenv("DB_NAME")
 db_username = os.getenv("DB_USERNAME")
 db_password = os.getenv("LOCAL_DB_PASSWORD")
 
-def calculate_sma(conn):
-	# art_metric_data
-	#left is name to save in table, right is column name to select from
-	art_metrics = {
-		"daily_trading_volume": "volume_24h",
-		"avg_txn_fees": "avg_txn_fees", # not in TT
-		"circulating_supply": "circulating_supply",
-		"daily_txns": "daily_txns",
-		"daa": "dau",
-		"daa_over_100": "dau_over_100", # not in TT
-		"dex_volume":"dex_volumes",  # not in TT
-		"fd_marketcap":"fdmc",
-		"fees":"fees",
-		"marketcap":"mc",
-		"price":"price",
-		"revenue":"revenue",
-		"stablecoin_mc":"stablecoin_mc", # not in TT
-		"tvl":"tvl"
-		}
-
-	tt_metrics = {
-		# tt_all_metrics_data
-		"tvl":"tvl",
-		"price":"price",
-		"daa":"user_dau",
-		"daily_txns": "transaction_count",
-		"marketcap":"market_cap_circulating",
-		"revenue":"revenue",
-		"fees":"fees",
-		"daily_trading_volume":"token_trading_volume",
-		"fd_marketcap":"market_cap_fully_diluted",
-		"circulating_supply":"token_supply_circulating"
-		}
-
-	try:
-		with conn.cursor() as cursor:
-			cursor.execute("SELECT project_id, from_table, sector FROM v_all_unique_projects WHERE sector IS NOT NULL")
-			result = cursor.fetchall()
-
-			for row in result:
-				project_id,	from_table, sector = row
-				all_sma_data = []
-
-				if from_table == "art_metric_data":
-					metrics = art_metrics
-				elif from_table == "tt_all_metrics_data":
-					metrics = tt_metrics
-				else:
-					print("Something went badly wrong")
-					sys.exit(1)
-					
-				for save_as_metric, col_metric in metrics.items():
-					cursor.execute(f"SELECT datestamp,{col_metric} FROM {from_table} WHERE project_name='{project_id}' ORDER BY datestamp ASC")
-					data = cursor.fetchall()
-
-					periods = [7,14,30,45,50,60,90]
-					sma_values = {period: [] for period in periods}
-					windows = {period: deque(maxlen=period) for period in periods}
-
-					for date, value in data:
-						if value is not None:
-							for period in periods:
-								windows[period].append(value)
-
-								if len(windows[period]) == period:
-									sma = sum(windows[period]) / period
-									sma_values[period].append((date, sma))
-
-					for period, values in sma_values.items():
-						for date, sma in values:
-							all_sma_data.append((project_id, sector, date, save_as_metric, period, sma))
-
-				batch_size = 1000
-				for size in range(0,len(all_sma_data), batch_size):
-					batch = all_sma_data[size:size+batch_size]
-				update_query = """
-				INSERT INTO cb_metric_sma
-				(project_id, sector, datestamp, metric_name, time_period, sma_value)
-				VALUES (%s, %s, %s, %s, %s, %s)
-				ON DUPLICATE KEY UPDATE sma_value = VALUES(sma_value)
-				"""
-				cursor.executemany(update_query, all_sma_data)
-				conn.commit()
-				print(f"Updated SMA for {project_id}")
-
-	except Error as e:
-		print("Error: ", e, f" for project: {project_id}")
-
 
 def custom_project_names(project_name):
 	custom_name_mapping = {
 		# Left is taking in, right is being returned
 		"binance-smart-chain":"BSC",
-		"near":"NEAR"
+		"near":"NEAR",
+		"cosmoshub":"Cosmos",
+		"the-open-network":"The Open Network",
+		"ton":"The Open Network",
+		"benqi_finance":"Benqi"
 	}
-
 	if project_name in custom_name_mapping:
 		return custom_name_mapping[project_name]
 
 	if project_name[0].isalpha():
 		return project_name[0].upper() + project_name[1:]
+
+	else:
+		return project_name
 
 
 # Update raw table
@@ -264,15 +182,18 @@ def calc_update_raw_table(conn):
 			dau, 
 			fees, 
 			market_cap, 
-			fdmc, price, 
+			fdmc,
+   			price, 
 			txns, 
 			revenue, 
 			avg_txn_fee, 
 			dau_over_100, 
-			mau, dex_volumes, 
+			mau,
+   			dex_volumes, 
 			tokenholder_count, 
 			tvl, 
-			stablecoin_total_supply, 
+			stablecoin_total_supply, stablecoin_total_supply, 
+			stablecoin_transfer_volume, stablecoin_transfer_volume, 
 			weekly_commits_core_ecosystem, weekly_commits_core_ecosystem, 
 			weekly_commits_sub_ecosystem, weekly_commits_sub_ecosystem, 
 			weekly_contracts_deployed, weekly_contracts_deployed, 
@@ -307,6 +228,7 @@ def calc_update_raw_table(conn):
 			"tokenholders", 
 			"tvl", 
 			"stablecoin_mc", "stablecoin_mc_a", 
+			"stablecoin_transfer_volume", "stablecoin_transfer_volume_a",
 			"weekly_commits_core", "weekly_commits_core_a", 
 			"weekly_commits_sub", "weekly_commits_sub_a", 
 			"weekly_contracts_deployed", "weekly_contracts_deployed_a", 
