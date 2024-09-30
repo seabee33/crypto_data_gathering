@@ -7,40 +7,43 @@ from m_calculations import *
 from m_cq import *
 from m_art_snowflake import *
 from m_defi_llama import *
+from m_fact_table import *
 db_name = os.getenv("DB_NAME")
 db_username = os.getenv("DB_USERNAME")
 db_password = os.getenv("LOCAL_DB_PASSWORD")
 
 # Artemis
-update_art_sf = False
-update_artemis = False
+update_art_sf = True
+update_artemis = True
 
 # Token Terminal
-update_token_terminal = False
+update_token_terminal = True
 
 # Bitformance
-update_bitformance = False
+update_bitformance = True
 
 # Defi Llama
-update_defi_llama = False
+update_defi_llama = True
 
 # FRED
-update_fred = False
+update_fred = True
 
 # Crypto Quant
 update_cq = False
 
 # Calculations
-update_smas = False
 update_main_table = True
+update_fact_table = True
 
 
-conn = mysql.connector.connect(host="localhost", database=db_name, user=db_username, password=db_password)
-conn_cq = mysql.connector.connect(host="localhost", database="helios-cq", user=db_username, password=db_password)
+conn = mysql.connector.connect(host="localhost", database=db_name, user=db_username, password=db_password, port=3303)
+conn_cq = mysql.connector.connect(host="localhost", database="helios-cq", user=db_username, password=db_password, port=3303)
 conn_sf = snowflake.connector.connect(user='conordb', password=sf_db_pw, account=sf_acc_id, warehouse='COMPUTE_WH', database='ARTEMIS_DATA')
+engine = sqlalchemy.create_engine(f'mysql+mysqlconnector://{db_username}:{db_password}@localhost:3303/helios')
+
 
 try:
-	new_log_entry(conn, ("g", "Core", f"Beginning updates for {'Artemis (API),' if update_artemis else ''} {'Artemis (SF),' if update_art_sf else ''} {'TT,' if update_token_terminal else ''} {'Bitformance,' if update_bitformance else ''} {'FRED,' if update_fred else ''} {'CQ,' if update_cq else ''}  {'SMAs,' if update_smas else ''}  {'Main Table' if update_main_table else ''}"))
+	new_log_entry(conn, ("g", "Core", f"Beginning updates for {'Artemis (API),' if update_artemis else ''} {'Artemis (SF),' if update_art_sf else ''} {'TT,' if update_token_terminal else ''} {'Bitformance,' if update_bitformance else ''} {'FRED,' if update_fred else ''} {'CQ,' if update_cq else ''}  {'Fact Table,' if update_fact_table else ''}  {'Main Table' if update_main_table else ''}"))
 
 	if update_art_sf:
 		sf_cursor = conn_sf.cursor()
@@ -106,13 +109,14 @@ try:
 		
 		if update_defi_llama:
 			new_log_entry(conn, ("g", "Core", "Beginning update for Defi Llama data"))
-			dl_update_defi_llama_tables(conn)
+			# dl_update_defi_llama_tables(conn)
+			dl_update_overview_yield(engine)
 			new_log_entry(conn, ("g", "Core", "Finished update for Defi Llama successfully"))
-		
-		if update_smas:
-			new_log_entry(conn, ("g", "Core", "Beginning update for SMA"))
-			calculate_sma(conn)
-			new_log_entry(conn, ("g", "Core", "Finished update for SMA"))
+
+		if update_fact_table:
+			new_log_entry(conn, ("g", "Core", "Beginning update for Fact Table data"))
+			save_to_fact_table(conn)
+			new_log_entry(conn, ("g", "Core", "Finished update for Fact table successfully"))
 		
 		if update_main_table:
 			new_log_entry(conn, ("g", "Core", "Beginning update for main table data"))
