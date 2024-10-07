@@ -1,9 +1,6 @@
-# Function to make log entries into local db
-
-import pandas as pd
+import pandas as pd, logging, numpy as np
 from datetime import datetime
 from mysql.connector import Error
-import logging
 
 # Example usage
 # new_log_entry(conn, ("G", "source," "Test message, action completed successfully"))
@@ -24,7 +21,7 @@ def new_log_entry(conn, log_data):
 
 
 
-def updatedb(conn, insert_type, table_name, amt_of_unique_cols, df):
+def udb(conn, insert_type, table_name, amt_of_unique_cols, df):
 	"""
 	Updates or inserts data into the specified database table.
 
@@ -62,8 +59,10 @@ def updatedb(conn, insert_type, table_name, amt_of_unique_cols, df):
 		query = f"INSERT IGNORE INTO {table_name} ({column_names_str}) VALUES ({placeholders})"
 	else:
 		raise ValueError("Invalid insert type")
-	
+
+	df = df.replace({np.nan: None})
 	values = list(df.itertuples(index=False, name=None))
+	# print(values)
 	
 	try:
 		with conn.cursor() as cursor:
@@ -73,5 +72,4 @@ def updatedb(conn, insert_type, table_name, amt_of_unique_cols, df):
 			logging.info(f"Data updated successfully, affected rows: {affected_rows}")
 	except Exception as e:
 		logging.error("An error occurred during commit: %s", e)
-	
 	
