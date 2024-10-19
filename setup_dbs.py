@@ -33,6 +33,7 @@ table_data = {
 		buidl_tokenholders INT DEFAULT NULL,
 		capital_deployed DOUBLE DEFAULT NULL,
 		ckbtc_total_supply DOUBLE DEFAULT NULL,
+		cbbtc_outstanding_supply DOUBLE DEFAULT NULL,
 		code_commits INT DEFAULT NULL,
 		contracts_deployed INT DEFAULT NULL,
 		contract_deployers INT DEFAULT NULL,
@@ -53,6 +54,7 @@ table_data = {
 		market_cap_fully_diluted DOUBLE DEFAULT NULL,
 		message_count INT DEFAULT NULL,
 		net_deposits DOUBLE DEFAULT NULL,
+		number_of_validators INT DEFAULT NULL,
 		nns_proposals INT DEFAULT NULL,
 		number_of_icp_transactions INT DEFAULT NULL,
 		notional_trading_volume DOUBLE DEFAULT NULL,
@@ -61,6 +63,7 @@ table_data = {
 		outstanding_supply DOUBLE DEFAULT NULL,
 		pf_circulating DOUBLE DEFAULT NULL,
 		pf_fully_diluted DOUBLE DEFAULT NULL,
+		pre_migration_price DOUBLE DEFAULT NULL,
 		price DOUBLE DEFAULT NULL,
 		ps_circulating DOUBLE DEFAULT NULL,
 		ps_fully_diluted DOUBLE DEFAULT NULL,
@@ -68,6 +71,7 @@ table_data = {
 		reward_payouts DOUBLE DEFAULT NULL,
 		stablecoin_transfer_count DOUBLE DEFAULT NULL,
 		stablecoin_dau INT DEFAULT NULL,
+		staking_market_cap INT DEFAULT NULL,
 		stablecoin_holders INT DEFAULT NULL,
 		stablecoin_mau INT DEFAULT NULL,
 		stablecoin_transfer_volume DOUBLE DEFAULT NULL,
@@ -87,6 +91,7 @@ table_data = {
 		total_icp_staked_on_nns DOUBLE DEFAULT NULL,
 		total_internet_identities INT DEFAULT NULL,
 		total_transaction_fees DOUBLE DEFAULT NULL,
+		treasury_net_flows DOUBLE DEFAULT NULL,
 		tradeable_assets INT DEFAULT NULL,
 		tradeable_pairs INT DEFAULT NULL,
 		trade_count INT DEFAULT NULL,
@@ -127,18 +132,6 @@ table_data = {
 		id INT AUTO_INCREMENT PRIMARY KEY,
 		project_metric VARCHAR(64),
 		date_added DATE
-		)
-	""",
-	"cb_metric_sma":"""
-		CREATE TABLE IF NOT EXISTS cb_metric_sma (
-		id INT AUTO_INCREMENT PRIMARY KEY,
-		project_id VARCHAR(64) NOT NULL,
-		sector VARCHAR (32),
-		datestamp DATE NOT NULL,
-		metric_name VARCHAR(32) NOT NULL,
-		sma_time_period INT NOT NULL,
-		sma_value DOUBLE NOT NULL,
-		UNIQUE (project_id, datestamp, sma_time_period, metric_name)
 		)
 	""",
 	"tt_available_market_sectors":"""
@@ -352,6 +345,8 @@ table_data = {
 			weekly_developers_sub_ecosystem INT DEFAULT NULL,
 			validator_fees_native DOUBLE DEFAULT NULL,
 			validator_fees DOUBLE DEFAULT NULL,
+			num_apps INT DEFAULT NULL,
+			app_fees DOUBLE DEFAULT NULL,
 			UNIQUE(project_name, datestamp)
 		)
 	""",
@@ -465,22 +460,22 @@ table_data = {
 			id INT AUTO_INCREMENT PRIMARY KEY,
    			date_added DATE DEFAULT CURRENT_TIMESTAMP,
 			project_name VARCHAR(64) DEFAULT NULL,
-			project_slug VARCHAR(64) DEFAULT NULL,
+			project_id VARCHAR(64) DEFAULT NULL,
 			project_symbol VARCHAR(64) DEFAULT NULL,
-			UNIQUE (project_slug)
+			UNIQUE (project_id)
 		)
 	""",
 	"sr_selected_projects":"""
 		CREATE TABLE IF NOT EXISTS sr_selected_projects (
 			id INT AUTO_INCREMENT PRIMARY KEY,
-			project_slug VARCHAR(64),
-			UNIQUE(project_slug)
+			project_id VARCHAR(64),
+			UNIQUE(project_id)
 		)
 	""",
 	"sr_raw_data":"""
 		CREATE TABLE IF NOT EXISTS sr_raw_data (
 			id INT AUTO_INCREMENT PRIMARY KEY,
-			project_slug VARCHAR(64),
+			project_id VARCHAR(64),
 			datestamp DATE,
 			active_validators INT DEFAULT NULL,
 			annualized_rewards_usd DOUBLE DEFAULT NULL,
@@ -495,7 +490,8 @@ table_data = {
 			staking_marketcap DOUBLE DEFAULT NULL,
 			staking_ratio DOUBLE DEFAULT NULL,
 			total_staking_wallets INT DEFAULT NULL,
-			total_validators INT DEFAULT NULL
+			total_validators INT DEFAULT NULL,
+			UNIQUE (project_id, datestamp)
 		)
 	""",
 	"sr_selected_metrics":"""
@@ -850,6 +846,15 @@ table_data = {
 			zklink_c INT DEFAULT NULL,
 			UNIQUE (datestamp)
 		)
+	""",
+	"dl_yield":"""
+		CREATE TABLE IF NOT EXISTS dl_yield (
+			datestamp DATE PRIMARY KEY,
+			yield_raw DOUBLE,
+			yield_7d_ma DOUBLE DEFAULT NULL,
+			yield_14d_ma DOUBLE DEFAULT NULL,
+			yield_30d_ma DOUBLE DEFAULT NULL
+		)
 	"""
 }
 
@@ -918,7 +923,7 @@ view_setup = {
 
 
 try:
-	conn = mysql.connector.connect(host="localhost", database=db_name, user=db_username, password=db_password)
+	conn = mysql.connector.connect(host="localhost", database=db_name, user=db_username, password=db_password, port=3303)
 	if conn.is_connected():
 		cursor = conn.cursor()
 		print("Connected to DB ^.^")
