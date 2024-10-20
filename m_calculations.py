@@ -43,6 +43,7 @@ def custom_project_names(project_name):
 		"sei-network":"Sei",
 		"trader_joe":"trader-joe",
 		"zksync":"zksync-era",
+		"Zksync-era":"zksync-era",
 		"zksync_era_bridge":"zksync-era-bridge"
 	}
 	if project_name in custom_name_mapping:
@@ -62,65 +63,60 @@ def calc_update_raw_table(conn, engine):
 			# ===================================================================== #
 			# Token Terminal table
 			tt_query = """SELECT datestamp, project_id as project_name, 
-			user_dau as daa, user_dau as daa_t, 
-			fees, fees as fees_t, 
-			market_cap_circulating as mc, market_cap_circulating as mc_t, 
-			market_cap_fully_diluted as fdmc, market_cap_fully_diluted as fdmc_t, 
-			price, price as price_t, 
-			transaction_count as transactions, transaction_count as transactions_t, 
-			revenue, revenue as revenue_t, 
-			transaction_fee_average as avg_txn_fee, transaction_fee_average as avg_txn_fee_t, 
-			user_mau as maa, user_mau as maa_t, 
-			tokenholders, tokenholders as tokenholders_t, 
-			tvl, tvl as tvl_t, 
-			token_trading_volume as volume_24h_usd, token_trading_volume as volume_24h_usd_t, 
-			active_developers, active_developers as active_developers_t, 
-			active_loans, active_loans as active_loans_t, 
-			earnings, earnings as earnings_t, 
-			gross_profit, gross_profit as gross_profit_t, 
-			token_supply_circulating, token_supply_circulating as token_supply_circulating_t, 
-			token_incentives, token_incentives as token_incentives_t, 
-			token_supply_maximum, token_supply_maximum as token_supply_maximum_t, 
-			active_addresses_weekly, active_addresses_weekly as active_addresses_weekly_t 
+			user_dau as daa_t, 
+			fees as fees_t, 
+			market_cap_circulating as mc_t, 
+			market_cap_fully_diluted as fdmc_t, 
+			price as price_t, 
+			transaction_count as transactions_t, 
+			revenue as revenue_t, 
+			transaction_fee_average as avg_txn_fee_t, 
+			user_mau as maa_t, 
+			tokenholders as tokenholders_t, 
+			tvl as tvl_t, 
+			token_trading_volume as volume_24h_usd_t, 
+			active_developers as active_developers_t, 
+			active_loans as active_loans_t, 
+			earnings as earnings_t, 
+			gross_profit as gross_profit_t, 
+			token_supply_circulating as circulating_supply_t, 
+			token_incentives as token_incentives_t, 
+			token_supply_maximum as token_supply_maximum_t, 
+			active_addresses_weekly as active_addresses_weekly_t 
 			FROM tt_all_metrics_data WHERE user_dau > 0 AND fees > 0 ORDER BY datestamp DESC"""
 
 			tt_df = pd.read_sql(tt_query, engine)
 
 			tt_df["project_name"] = tt_df["project_name"].apply(custom_project_names)
 
-			udb(conn, "update", "j_raw", 2, tt_df)
-			print("Updated token terminal")
-
 			# ===================================================================== #
 			# Artemis API table
 			art_query = """SELECT datestamp, project_name, 
-			dau as daa, dau as daa_a, 
-			fees, fees as fees_a, 
-			mc, mc as mc_a, 
-			fdmc, fdmc as fdmc_a, 
-			price, price as price_a, 
-			daily_txns as transactions, daily_txns as transactions_a, 
-			revenue, revenue as revenue_a, 
-			avg_txn_fees as avg_txn_fee, avg_txn_fees as avg_txn_fee_a, 
-			dau_over_100 as daa_over_100, dau_over_100 as daa_over_100_a, 
-			dex_volumes as dex_volume, dex_volumes as dex_volume_a, 
-			tvl, tvl as tvl_a, 
-			stablecoin_mc, stablecoin_mc as stablecoin_mc_a, 
-			volume_24h as volume_24h_usd, volume_24h as volume_24h_usd_a, 
-			circulating_supply, circulating_supply as circulating_supply_a
+			dau as daa_a, 
+			fees as fees_a, 
+			mc as mc_a, 
+			fdmc as fdmc_a, 
+			price as price_a, 
+			daily_txns as transactions_a, 
+			revenue as revenue_a, 
+			avg_txn_fees as avg_txn_fee_a, 
+			dau_over_100 as daa_over_100_a, 
+			dex_volumes as dex_volume_a, 
+			tvl as tvl_a, 
+			stablecoin_mc as stablecoin_mc_a, 
+			volume_24h as volume_24h_usd_a, 
+			circulating_supply as circulating_supply_a
 			FROM art_metric_data WHERE dau > 0 AND fees > 0 ORDER BY datestamp DESC"""
 
 			art_df = pd.read_sql(art_query, engine)
 
 			art_df["project_name"] = art_df["project_name"].apply(custom_project_names)
 
-			udb(conn, "update", "j_raw", 2, art_df)
 			print("Updated artemis (API)")
 
 			# ===================================================================== #
 			# Artemis SF table
 			art_sf_query = """SELECT datestamp, project_name, 
-			stablecoin_total_supply as stablecoin_mc, stablecoin_total_supply as stablecoin_mc_a, 
 			stablecoin_transfer_volume, stablecoin_transfer_volume as stablecoin_transfer_volume_a, 
 			weekly_commits_core_ecosystem as weekly_commits_core, weekly_commits_core_ecosystem as weekly_commits_core_a, 
 			weekly_commits_sub_ecosystem as weekly_commits_sub, weekly_commits_sub_ecosystem as weekly_commits_sub_a, 
@@ -130,9 +126,8 @@ def calc_update_raw_table(conn, engine):
 			weekly_developers_sub_ecosystem as weekly_dev_sub, weekly_developers_sub_ecosystem as weekly_dev_sub_a 
 			FROM art_sf_raw_data WHERE dau > 0 AND fees > 0 ORDER BY datestamp DESC"""
 
-			art_sf_sf = pd.read_sql(art_sf_query, engine)
-			art_sf_sf["project_name"] = art_sf_sf["project_name"].apply(custom_project_names)
-			udb(conn, "update", "j_raw", 2, art_sf_sf)
+			art_sf_df = pd.read_sql(art_sf_query, engine)
+			art_sf_df["project_name"] = art_sf_df["project_name"].apply(custom_project_names)
 
 			print("Updated artemis (SF)")
 			
@@ -158,10 +153,53 @@ def calc_update_raw_table(conn, engine):
 
 			# sr_df = pd.read_sql(sr_query, engine)
 			# sr_df["project_name"] = sr_df["project_name"].apply(custom_project_names)
-			# udb(conn, "update", "j_raw", 2, sr_df)
-			# print("Updated Staking rewards")
 
+			# j_raw
+			merged_df = pd.merge(tt_df, art_df, on=["datestamp", "project_name"], how="outer")
+			merged_df = pd.merge(merged_df, art_sf_df, on=["datestamp", "project_name"], how="outer")
 
+			merged_df["daa"] = merged_df["daa_t"].combine_first(merged_df["daa_a"])
+			merged_df["fees"] = merged_df["fees_t"].combine_first(merged_df["fees_a"])
+			merged_df["mc"] = merged_df["mc_t"].combine_first(merged_df["mc_a"])
+			merged_df["fdmc"] = merged_df["fdmc_t"].combine_first(merged_df["fdmc_a"])
+			merged_df["price"] = merged_df["price_t"].combine_first(merged_df["price_a"])
+			merged_df["transactions"] = merged_df["transactions_t"].combine_first(merged_df["transactions_a"])
+			merged_df["revenue"] = merged_df["revenue_t"].combine_first(merged_df["revenue_a"])
+			merged_df["avg_txn_fee"] = merged_df["avg_txn_fee_t"].combine_first(merged_df["avg_txn_fee_a"])
+			merged_df["maa"] = merged_df["maa_t"]
+			merged_df["tokenholders"] = merged_df["tokenholders_t"]
+			merged_df["tvl"] = merged_df["tvl_t"].combine_first(merged_df["tvl_a"])
+			merged_df["volume_24h_usd"] = merged_df["volume_24h_usd_t"].combine_first(merged_df["volume_24h_usd_a"])
+			merged_df["active_developers"] = merged_df["active_developers_t"]
+			merged_df["active_loans"] = merged_df["active_loans_t"]
+			merged_df["earnings"] = merged_df["earnings_t"]
+			merged_df["gross_profit"] = merged_df["gross_profit_t"]
+			merged_df["circulating_supply"] = merged_df["circulating_supply_t"].combine_first(merged_df["circulating_supply_a"])
+			merged_df["token_incentives"] = merged_df["token_incentives_t"]
+			merged_df["token_supply_maximum"] = merged_df["token_supply_maximum_t"]
+			merged_df["active_addresses_weekly"] = merged_df["active_addresses_weekly_t"]
+			merged_df["stablecoin_mc"] = merged_df["stablecoin_mc_a"]
+			merged_df["dex_volume"] = merged_df["dex_volume_a"]
+			merged_df["daa_over_100"] = merged_df["daa_over_100_a"]
+
+			# Fill forward the weekly data
+			merged_df["stablecoin_transfer_volume"]	= merged_df["stablecoin_transfer_volume"].ffill()
+			merged_df["stablecoin_transfer_volume_a"] = merged_df["stablecoin_transfer_volume_a"].ffill()
+			merged_df["weekly_commits_core"] = merged_df["weekly_commits_core"].ffill()
+			merged_df["weekly_commits_core_a"] = merged_df["weekly_commits_core_a"].ffill()
+			merged_df["weekly_commits_sub"]	= merged_df["weekly_commits_sub"].ffill()
+			merged_df["weekly_commits_sub_a"] = merged_df["weekly_commits_sub_a"].ffill()
+			merged_df["weekly_contracts_deployed"] = merged_df["weekly_contracts_deployed"].ffill()
+			merged_df["weekly_contracts_deployed_a"] = merged_df["weekly_contracts_deployed_a"].ffill()
+			merged_df["weekly_contract_deployers"] = merged_df["weekly_contract_deployers"].ffill()
+			merged_df["weekly_contract_deployers_a"] = merged_df["weekly_contract_deployers_a"].ffill()
+			merged_df["weekly_dev_core"] = merged_df["weekly_dev_core"].ffill()
+			merged_df["weekly_dev_core_a"] = merged_df["weekly_dev_core_a"].ffill()
+			merged_df["weekly_dev_sub"] = merged_df["weekly_dev_sub"].ffill()
+			merged_df["weekly_dev_sub_a"] = merged_df["weekly_dev_sub_a"].ffill()
+
+			# merged_df.to_csv("merged.csv", index=False)
+			udb(conn, "update", "j_raw", 2, merged_df)
 
 			# ===================================================================== #
 			# Update sector info
