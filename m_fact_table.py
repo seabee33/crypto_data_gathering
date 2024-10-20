@@ -39,7 +39,6 @@ def fetch_j_raw(conn):
     stablecoin_transfer_volume,
     transactions,
     tokenholders,
-    token_supply_circulating,
     token_incentives,
     token_supply_maximum,
     tvl,
@@ -146,7 +145,7 @@ def calculate_momentum(df):
     base_columns = [
         'avg_txn_fee', 'active_developers', 'active_addresses_weekly', 'active_loans', 'circulating_supply', 'daa', 
         'daa_over_100', 'dex_volume', 'earnings', 'fees', 'fdmc', 'gross_profit', 'maa', 'mc', 'price', 'revenue', 
-        'stablecoin_mc', 'stablecoin_transfer_volume', 'transactions', 'tokenholders', 'token_supply_circulating', 
+        'stablecoin_mc', 'stablecoin_transfer_volume', 'transactions', 'tokenholders', 
         'token_incentives', 'token_supply_maximum', 'tvl', 'volume_24h_usd', 'weekly_commits_core', 'weekly_commits_sub', 
         'weekly_dev_core', 'weekly_dev_sub', 'weekly_contracts_deployed', 'weekly_contract_deployers', 
         'weekly_unique_contract_deployers'
