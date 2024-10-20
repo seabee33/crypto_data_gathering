@@ -157,6 +157,8 @@ def calc_update_raw_table(conn, engine):
 			# j_raw
 			merged_df = pd.merge(tt_df, art_df, on=["datestamp", "project_name"], how="outer")
 			merged_df = pd.merge(merged_df, art_sf_df, on=["datestamp", "project_name"], how="outer")
+			merged_df = merged_df.sort_values(by=["project_name", "datestamp"])
+
 
 			merged_df["daa"] = merged_df["daa_t"].combine_first(merged_df["daa_a"])
 			merged_df["fees"] = merged_df["fees_t"].combine_first(merged_df["fees_a"])
@@ -183,20 +185,20 @@ def calc_update_raw_table(conn, engine):
 			merged_df["daa_over_100"] = merged_df["daa_over_100_a"]
 
 			# Fill forward the weekly data
-			merged_df["stablecoin_transfer_volume"]	= merged_df["stablecoin_transfer_volume"].ffill()
-			merged_df["stablecoin_transfer_volume_a"] = merged_df["stablecoin_transfer_volume_a"].ffill()
-			merged_df["weekly_commits_core"] = merged_df["weekly_commits_core"].ffill()
-			merged_df["weekly_commits_core_a"] = merged_df["weekly_commits_core_a"].ffill()
-			merged_df["weekly_commits_sub"]	= merged_df["weekly_commits_sub"].ffill()
-			merged_df["weekly_commits_sub_a"] = merged_df["weekly_commits_sub_a"].ffill()
-			merged_df["weekly_contracts_deployed"] = merged_df["weekly_contracts_deployed"].ffill()
-			merged_df["weekly_contracts_deployed_a"] = merged_df["weekly_contracts_deployed_a"].ffill()
-			merged_df["weekly_contract_deployers"] = merged_df["weekly_contract_deployers"].ffill()
-			merged_df["weekly_contract_deployers_a"] = merged_df["weekly_contract_deployers_a"].ffill()
-			merged_df["weekly_dev_core"] = merged_df["weekly_dev_core"].ffill()
-			merged_df["weekly_dev_core_a"] = merged_df["weekly_dev_core_a"].ffill()
-			merged_df["weekly_dev_sub"] = merged_df["weekly_dev_sub"].ffill()
-			merged_df["weekly_dev_sub_a"] = merged_df["weekly_dev_sub_a"].ffill()
+			merged_df["stablecoin_transfer_volume"]	= merged_df.groupby("project_name")["stablecoin_transfer_volume"].ffill()
+			merged_df["stablecoin_transfer_volume_a"] = merged_df.groupby("project_name")["stablecoin_transfer_volume_a"].ffill()
+			merged_df["weekly_commits_core"] = merged_df.groupby("project_name")["weekly_commits_core"].ffill()
+			merged_df["weekly_commits_core_a"] = merged_df.groupby("project_name")["weekly_commits_core_a"].ffill()
+			merged_df["weekly_commits_sub"]	= merged_df.groupby("project_name")["weekly_commits_sub"].ffill()
+			merged_df["weekly_commits_sub_a"] = merged_df.groupby("project_name")["weekly_commits_sub_a"].ffill()
+			merged_df["weekly_contracts_deployed"] = merged_df.groupby("project_name")["weekly_contracts_deployed"].ffill()
+			merged_df["weekly_contracts_deployed_a"] = merged_df.groupby("project_name")["weekly_contracts_deployed_a"].ffill()
+			merged_df["weekly_contract_deployers"] = merged_df.groupby("project_name")["weekly_contract_deployers"].ffill()
+			merged_df["weekly_contract_deployers_a"] = merged_df.groupby("project_name")["weekly_contract_deployers_a"].ffill()
+			merged_df["weekly_dev_core"] = merged_df.groupby("project_name")["weekly_dev_core"].ffill()
+			merged_df["weekly_dev_core_a"] = merged_df.groupby("project_name")["weekly_dev_core_a"].ffill()
+			merged_df["weekly_dev_sub"] = merged_df.groupby("project_name")["weekly_dev_sub"].ffill()
+			merged_df["weekly_dev_sub_a"] = merged_df.groupby("project_name")["weekly_dev_sub_a"].ffill()
 
 			# merged_df.to_csv("merged.csv", index=False)
 			udb(conn, "update", "j_raw", 2, merged_df)
