@@ -8,38 +8,42 @@ from m_cq import *
 from m_art_snowflake import *
 from m_defi_llama import *
 from m_fact_table import *
+from sqlalchemy import create_engine
 db_name = os.getenv("DB_NAME")
 db_username = os.getenv("DB_USERNAME")
 db_password = os.getenv("LOCAL_DB_PASSWORD")
 
 # Artemis
-update_art_sf = True
-update_artemis = True
+update_art_sf = False
+update_artemis = False
 
 # Token Terminal
 update_token_terminal = True
 
 # Bitformance
-update_bitformance = True
+update_bitformance = False
 
 # Defi Llama
-update_defi_llama = True
+update_defi_llama = False
 
 # FRED
-update_fred = True
+update_fred = False
 
 # Crypto Quant
 update_cq = False
 
+# Staking Rewards
+update_sr = False
+
 # Calculations
-update_main_table = True
-update_fact_table = True
+update_main_table = False
+update_fact_table = False
 
 
 conn = mysql.connector.connect(host="localhost", database=db_name, user=db_username, password=db_password, port=3303)
-conn_cq = mysql.connector.connect(host="localhost", database="helios-cq", user=db_username, password=db_password, port=3303)
 conn_sf = snowflake.connector.connect(user='conordb', password=sf_db_pw, account=sf_acc_id, warehouse='COMPUTE_WH', database='ARTEMIS_DATA')
 engine = sqlalchemy.create_engine(f'mysql+mysqlconnector://{db_username}:{db_password}@localhost:3303/helios')
+engine_sf = sqlalchemy.create_engine(f"snowflake://conordb:{sf_db_pw}@{sf_acc_id}/ARTEMIS_DATA/AAVE?warehouse=COMPUTE_WH&role=ACCOUNTADMIN")
 
 
 try:
@@ -50,6 +54,7 @@ try:
 		sf_cursor.execute("SELECT 1")
 		new_log_entry(conn, ("g", "Core", "Beginning update for SF Artemis"))
 		sf_art_update_raw_data(conn_sf, conn)
+		art_sf_get_fee_data(conn)
 		new_log_entry(conn, ("g", "Core", "finished update for SF Artemis successfully"))
 
 	if conn.is_connected():
@@ -86,16 +91,13 @@ try:
 			# Apply market sector to project list
 			# tt_update_project_ids_with_market_sector(cursor, conn, tt_api_key)
 
-			diff = tt_compare_available_metrics(conn)
-			
-			if diff == []:
-				tt_update_project_list(cursor, conn, tt_api_key)
-				tt_update_project_metrics(cursor, conn, tt_api_key)
-				new_log_entry(conn, ("g", "Core", "finished update for tt successfully"))
-			else:
-				print("Uh Oh, new metric available!")
-				new_log_entry(conn, ("h", "Token Terminal", f"New Metric, Can not continue, difference: {diff}"))
-				print(diff)
+			# Update project list
+			# tt_update_project_list(cursor, conn, tt_api_key)
+
+			# tt_update_project_list(cursor, conn, tt_api_key)
+			tt_update_raw_data(conn, tt_api_key)
+			new_log_entry(conn, ("g", "Core", "finished update for tt successfully"))
+
 
 		if update_bitformance:
 			new_log_entry(conn, ("g", "Core", "Beginning update for bitformance data"))
@@ -112,25 +114,29 @@ try:
 			# dl_update_defi_llama_tables(conn)
 			dl_update_overview_yield(engine)
 			new_log_entry(conn, ("g", "Core", "Finished update for Defi Llama successfully"))
-
-		if update_fact_table:
-			new_log_entry(conn, ("g", "Core", "Beginning update for Fact Table data"))
-			save_to_fact_table(conn)
-			new_log_entry(conn, ("g", "Core", "Finished update for Fact table successfully"))
-		
-		if update_main_table:
-			new_log_entry(conn, ("g", "Core", "Beginning update for main table data"))
-			calc_update_raw_table(conn)
-			new_log_entry(conn, ("g", "Core", "Finished update for main table successfully"))
 	
 		if update_cq:
 			new_log_entry(conn, ("g", "Core", "Beginning update for cq data"))
 			# Update exchange list
 			# cq_update_exchange_data(conn)
-
 			# ===== Update Exchange Flows ===== 
 			cq_update(conn_cq)
 			new_log_entry(conn, ("g", "Core", "Finished update for cq successfully"))
+
+		if update_sr:
+			new_log_entry(conn, ("g", "Core", "Beginning update for cq data"))
+			sr_update_raw_data(conn)
+			new_log_entry(conn, ("g", "Core", "Finished update for cq successfully"))
+
+		if update_main_table:
+			new_log_entry(conn, ("g", "Core", "Beginning update for main table data"))
+			calc_update_raw_table(conn, engine)
+			new_log_entry(conn, ("g", "Core", "Finished update for main table successfully"))
+
+		if update_fact_table:
+			new_log_entry(conn, ("g", "Core", "Beginning update for Fact Table data"))
+			save_to_fact_table(conn)
+			new_log_entry(conn, ("g", "Core", "Finished update for Fact table successfully"))
 
 	else:
 		print("Conn not connected")
