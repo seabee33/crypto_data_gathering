@@ -10,65 +10,7 @@ db_password = os.getenv("LOCAL_DB_PASSWORD")
 DEBUGGING = os.getenv("DEBUGGING")
 
 def tt_api():
-    return os.getenv("TT_API_KEY")
-
-# Save available metrics from API and compare agains db columns (TOKEN TERMINAL)
-def tt_compare_available_metrics(conn):
-	tt_api_key = tt_api()
-	headers = {"accept": "application/json", "authorization": f"Bearer {tt_api_key}"}
-	current_date = datetime.now().strftime("%Y-%m-%d")
-	unique_items = []
-
-	try:
-		with conn.cursor() as cursor:
-			all_projects_list = tt_get_existing_project_ids(cursor)
-			
-			if all_projects_list == []:
-				print("Project list empty")
-				new_log_entry(conn, ("h", "Token Terminal", "No projects in projects list, can not continue"))
-
-			for project_id in all_projects_list:
-				print(f"Checking available metrics for {project_id}")
-				new_log_entry(conn, ("g", "token terminal", f"Checking available metrics for {project_id}"))
-				response = requests.get(f"https://api.tokenterminal.com/v2/projects/{project_id}", headers=headers)
-				data = response.json()
-				data = list(data["data"]["metric_availability"].keys())
-
-				for metric in data:
-					cursor.execute("SELECT project_metric from tt_available_project_metrics")
-					all_metrics_from_db = cursor.fetchall()
-
-					if all_metrics_from_db == []:
-						current_metrics_list = []
-					else:
-						current_metrics_list = [metric[0] for metric in all_metrics_from_db]
-					
-					if metric not in current_metrics_list:
-						print(f"'{metric} not found, adding to DB'" if DEBUGGING else None)
-						new_log_entry(conn, ("m", "token terminal", f"'{metric} not found, adding to DB'"))
-						query = f"INSERT INTO tt_available_project_metrics (project_metric, date_added) VALUES (%s, %s)"
-						cursor.execute(query, (metric, current_date))
-					conn.commit()
-			db_cols = tt_check_cols_in_db(conn)
-			available_metrics_from_db = tt_get_all_available_metrics_from_db(conn)
-
-			combined_columns = db_cols + available_metrics_from_db
-			unique_items = [item for item in combined_columns if combined_columns.count(item) == 1]
-			return unique_items
-					
-	except Error as e:
-		print(e)
-
-
-def tt_get_all_available_metrics_from_db(conn):
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute("SELECT project_metric FROM tt_available_project_metrics")
-            rows = cursor.fetchall()
-            unique_metrics = [row[0] for row in rows]
-            return unique_metrics
-    except Error as e:
-        print("Error getting db metrics")
+	return os.getenv("TT_API_KEY")
 
 
 
@@ -77,7 +19,7 @@ def tt_check_cols_in_db(conn):
 	to_be_removed = ['id', 'datestamp', 'project_name', 'project_id']
 	try:
 		with conn.cursor() as cursor:
-			cursor.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='tt_all_metrics_data'")
+			cursor.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='tt_raw_data'")
 			raw_data = cursor.fetchall()
 			column_names = [column[0] for column in raw_data]
 			column_names = list(set(column_names))
@@ -103,7 +45,7 @@ def tt_get_existing_market_sector_ids(cursor):
 
 # return a list of all projects in db (TOKEN TERMINAL)
 def tt_get_existing_project_ids(cursor):
-	cursor.execute("SELECT project_id FROM tt_all_projects")
+	cursor.execute("SELECT project_id FROM tt_all_projects ORDER BY project_id ASC")
 	rows = cursor.fetchall()
 	existing_project_ids = [row[0] for row in rows]
 	return existing_project_ids
@@ -111,96 +53,89 @@ def tt_get_existing_project_ids(cursor):
 
 # Checks most recent datestamp in db for project (TOKEN TERMINAL)
 def tt_get_most_recent_update(cursor, project_id):
-	cursor.execute(f"SELECT datestamp FROM tt_all_metrics_data WHERE project_id='{project_id}' ORDER BY datestamp DESC LIMIT 1")
+	cursor.execute(f"SELECT datestamp FROM tt_raw_data WHERE project_id='{project_id}' ORDER BY datestamp DESC LIMIT 1")
 	data = cursor.fetchone()
 	if data == None:
 		return None
 	else:
 		datestamp = data[0]
-		new_datestamp = datestamp + timedelta(days=1)
-		return new_datestamp.strftime("%Y-%m-%d")
+		return datestamp.strftime("%Y-%m-%d")
 
 
+def tt_timestamp_to_datestamp(timestamp):
+    return timestamp.split("T")[0] if "T" in timestamp else timestamp
 
 
+			
 
 # Gets current data from api after checking last datestamp (TOKEN TERMINAL)
-def tt_update_project_metrics(cursor, conn, tt_api_key):
-	print("Updating project metrics")
-	new_log_entry(conn, ("g", "token terminal", "Updating project metrics"))
-	
-	all_project_ids = tt_get_existing_project_ids(cursor)
+def tt_update_raw_data(conn, tt_api_key):
+	current_date_minus_2 = (datetime.now() - timedelta(days=2)).strftime("%Y-%m-%d")
+	with conn.cursor() as cursor:
+		try:
+			print("Updating project metrics")
+			new_log_entry(conn, ("g", "token terminal", "Updating project metrics"))
+			all_project_ids = tt_get_existing_project_ids(cursor)
 
-	for project_id in all_project_ids:
+			for project_id in all_project_ids:
+				last_update = tt_get_most_recent_update(cursor, project_id)
 
-		last_update = tt_get_most_recent_update(cursor, project_id)
-
-		if last_update != None:
-			url = f"https://api.tokenterminal.com/v2/projects/{project_id}/metrics?start={last_update}"
-			headers = {"accept": "application/json", "authorization": f"Bearer {tt_api_key}"}
-			response = requests.get(url, headers=headers)
-
-			if response.status_code == 200:
-				data = response.json()
-				data = data.get("data", [])
-
-				if data != []:
-					for item in data:
-						original_datestamp = datetime.strptime(item['timestamp'], "%Y-%m-%dT%H:%M:%S.%fZ")
-						formatted_datestamp = original_datestamp.strftime("%Y-%m-%d")
-						item['timestamp'] = formatted_datestamp
-						columns = ', '.join(item.keys())
-						columns = columns.replace("timestamp", "datestamp")
-						values = ', '.join(['%s'] * len(item))
-
-						query = f"INSERT INTO tt_all_metrics_data ({columns}) VALUES ({values})"
-						cursor.execute(query, list(item.values()))
-						print(f"{project_id} data updated to {formatted_datestamp}")
-						new_log_entry(conn, ("g", "token terminal", f"{project_id} data updated to {formatted_datestamp}"))
-
-					conn.commit()
-				else:
+				if last_update == current_date_minus_2:
 					print(f"No new update for {project_id}")
-					new_log_entry(conn, ("g", "token terminal", f"No new update for {project_id}"))
-
-			else:
-				print(f"Token Terminal API response code: {response.status_code} for {project_id}")
-				new_log_entry(conn, ("h", "token terminal", f"API response code: {response.status_code}  for {project_id}"))
-		else:
-			# No data in table
-			url = f"https://api.tokenterminal.com/v2/projects/{project_id}/metrics"
-			headers = {"accept": "application/json", "authorization": f"Bearer {tt_api_key}"}
-			response = requests.get(url, headers=headers)
-
-			if response.status_code == 200:
-				data = response.json()
-				data = data.get("data", [])
-
-				if data != []:
-					for item in data:
-						original_datestamp = datetime.strptime(item['timestamp'], "%Y-%m-%dT%H:%M:%S.%fZ")
-						formatted_datestamp = original_datestamp.strftime("%Y-%m-%d")
-						item['timestamp'] = formatted_datestamp
-						columns = ', '.join(item.keys())
-						columns = columns.replace("timestamp", "datestamp")
-						values = ', '.join(['%s'] * len(item))
-
-						query = f"INSERT INTO tt_all_metrics_data ({columns}) VALUES ({values})"
-						cursor.execute(query, list(item.values()))
-					
-					conn.commit()
-					print(f"{project_id} data updated (FIRST DOWNLOAD)")
-					new_log_entry(conn, ("l", "token terminal", f"{project_id} data updated (FIRST DOWNLOAD)"))
+					new_log_entry(conn, ("g", "token terminal", f"{project_id} up to date ({last_update})"))
 				else:
-					print("No data received ????????????????")
-					new_log_entry(conn, ("l", "token terminal", "No data received ????????????????"))
+					if last_update != None:
+						last_update = datetime.strptime(last_update, "%Y-%m-%d") - timedelta(days=2)
+						last_update_str = last_update.strftime("%Y-%m-%d")
+						print(f"tt - updating {project_id}")
+						url = f"https://api.tokenterminal.com/v2/projects/{project_id}/metrics?start={last_update_str}"
+						headers = {"accept": "application/json", "authorization": f"Bearer {tt_api_key}"}
+						response = requests.get(url, headers=headers)
 
-			else:
-				print(f"Token Terminal API response code: {response.status_code}")
-				new_log_entry(conn, ("h", "token terminal", f"API response code: {response.status_code}"))
+						if response.status_code == 200:
+							data = response.json()
+							data = data.get("data", [])
 
+							if data != []:
+								df = pd.json_normalize(data)
+								df = df.rename(columns={"timestamp":"datestamp"})
+								df["datestamp"] = df["datestamp"].apply(tt_timestamp_to_datestamp)
 
+								udb(conn, "update", "tt_raw_data", 2, df)
+							else:
+								print(f"No new update for {project_id}")
+								new_log_entry(conn, ("g", "token terminal", f"No new update for {project_id}"))
 
+						else:
+							print(f"trying to update metrics 1 - API response code: {response.status_code} for {project_id}")
+							new_log_entry(conn, ("h", "token terminal", f"trying to update metrics 1 - API response code: {response.status_code}  for {project_id}"))
+					else:
+						# No data in table
+						url = f"https://api.tokenterminal.com/v2/projects/{project_id}/metrics"
+						headers = {"accept": "application/json", "authorization": f"Bearer {tt_api_key}"}
+						response = requests.get(url, headers=headers)
+
+						if response.status_code == 200:
+							data = response.json()
+							data = data.get("data", [])
+
+							if data != []:
+								df = pd.json_normalize(data)
+								df = df.rename(columns={"timestamp":"datestamp"})
+								df["datestamp"] = df["datestamp"].apply(tt_timestamp_to_datestamp)
+								udb(conn, "update", "tt_raw_data", 2, df)
+		
+								print(f"{project_id} data updated (FIRST DOWNLOAD)")
+								new_log_entry(conn, ("l", "token terminal", f"{project_id} data updated (FIRST DOWNLOAD)"))
+							else:
+								print("No data received ????????????????")
+								new_log_entry(conn, ("l", "token terminal", "No data received ????????????????"))
+
+						else:
+							print(f"trying to update metrics 2 - Token Terminal API response code: {response.status_code}, project {project_id}")
+							new_log_entry(conn, ("h", "token terminal", f"trying to update metrics 2 - API response code: {response.status_code} - project {project_id}"))
+		except Error as e:
+			print(e)
 
 
 # Updates database with a list of all project ids (TOKEN TERMINAL)
@@ -244,7 +179,7 @@ def tt_update_project_list(cursor, conn, tt_api_key):
 			print("No new projects since last update")
 			new_log_entry(conn, ("g", "token terminal", "No new projects since last update"))
 	else:
-		print(f"Token Terminal API response code: {response.status_code}")
+		print(f"trying to update project list - API response code: {response.status_code}")
 		new_log_entry(conn, ("g", "token terminal", "No new projects since last update"))
 
 
@@ -287,8 +222,8 @@ def tt_update_all_market_sectors_list(cursor, conn, tt_api_key):
 			print("No new projects since last update")
 			new_log_entry(conn, ("g", "token terminal", "No new projects since last update"))
 	else:
-		print(f"Token Terminal API response code: {response.status_code}")
-		new_log_entry(conn, ("h", "token terminal", f"Token Terminal API response code: {response.status_code}"))
+		print(f"trying to update sector info - Token Terminal API response code: {response.status_code}")
+		new_log_entry(conn, ("h", "token terminal", f"trying to update sector info - Token Terminal API response code: {response.status_code}"))
 		exit()
 
 
