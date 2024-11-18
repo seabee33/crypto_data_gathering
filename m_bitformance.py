@@ -8,103 +8,85 @@ from m_functions import *
 from io import BytesIO, StringIO
 from urllib.parse import urlparse, unquote
 
-
-
-def bf_first_setup(conn):
-	new_log_entry(conn, ("h", "Bitformance", "Adding urls to sources, remember to only run once"))
-	with open ("bitformance_urls.txt", "r") as file:
-		file_urls = file.read().splitlines()
-
-	for file_url in file_urls:
-		url = file_url
-		decoded_url = unquote(file_url)
-		decoded_url = decoded_url.replace(" ", "")
-		file_name = urlparse(decoded_url).path.split("/")[-1]
-		file_name = file_name.replace("%20","")
-		file_name = file_name.replace(",","")
-		file_name = file_name.replace("&","")
-		file_name = file_name.replace("(","")
-		file_name = file_name.replace(")","")
-		file_name = file_name.split(".")[0]
-		file_name = file_name.lower()
-		response = requests.get(url)
-		if response.status_code == 200:
-			if url.endswith(".csv"):
-				df = pd.read_csv(BytesIO(response.content))
-			elif url.endswith(".xlsx"):
-				df = pd.read_excel(BytesIO(response.content))
-		
-		with conn.cursor() as cursor:
-			cursor.execute("INSERT INTO bf_sources (url, sheet_name) VALUES (%s,%s)", (url, file_name))
-			conn.commit()
-
-
-
-def bf_process_url(conn, url, sheet_name):
-	try:
-		print(f"Connecting to url for sheet: {sheet_name}")
-		response = requests.get(url, timeout=15)
-
-		if response.status_code == 200:
-			print(f"Connecting OK for sheet: {sheet_name}")
-			csv_reader = csv.DictReader(StringIO(response.text))
-			bf_rows = []
-
-			for row in csv_reader:
-				datestamp = datetime.strptime(row['date'], "%Y-%m-%d").date()
-				total_value = row['total_value']
-				total_market_cap = row['total_marketcap']
-
-				bf_rows.append((datestamp, sheet_name, total_value, total_market_cap))
-
-			return sheet_name, bf_rows
-		
-		else:
-			print(f"Could not connect to url: {url}")
-			new_log_entry(conn, ("h", "Bitformance", f"Could not connect to url: {url}"))
-			return sheet_name, None
-	
-	except Exception as e:
-		print(f"Bitformance error: {e}")
-		new_log_entry(conn, ("h", "Bitformance", f"Bitformance error: {e}"))
-		return sheet_name, None
-
-
-
 def bf_update_data(conn):
-	try:
-		with conn.cursor() as cursor:
-			cursor.execute("SELECT url, sheet_name FROM bf_sources ORDER BY sheet_name ASC")
-			sources = cursor.fetchall()
+	print("bitformance - beginning update")
+	new_log_entry(conn, ("g", "bitformance", "beginning update"))
 
-		with ThreadPoolExecutor(max_workers=5) as executor:
-			# Storing futures
-			future_to_sheet = {}
+	bf_api_public = os.getenv("BITFORMANCE_API_PUB")
+	bf_api_priv = os.getenv("BITFORMANCE_API_PRIV")
+	# MC
+	response = requests.get(
+		f"https://api.bitformance.com/api/v2/get-top200-data", 
+		headers={"API-KEY": bf_api_public,"API-SECRET-KEY": bf_api_priv}, 
+		params={"timeseries_interval": "daily", "weighting_method": "marketcap"})
+	data = response.json()
+	df = pd.json_normalize(data["data"]["daily_timeseries_data"])
+	df.rename(columns={"date":"datestamp", "value":f"market_cap_value"}, inplace=True)
+	df.insert(1, "sheet_name", "top200")
+	udb(conn, "update", "bf_raw_data", 2, df)
 
-			# submit tasks to the executor to store in dict
-			for url, sheet_name in sources:
-				time.sleep(0.1) # Sleeping because aws rate limiting :(
-				future = executor.submit(bf_process_url, conn, url, sheet_name)
-				future_to_sheet[future] = sheet_name
-			
-			# Handle finished futures
-			for future in as_completed(future_to_sheet):
-				sheet_name = future_to_sheet[future]
-				try:
-					sheet_result, bf_rows = future.result()
-					if bf_rows:
-						with conn.cursor() as cursor:
-							cursor.executemany("""INSERT INTO
-							bf_data (datestamp, sheet_name, total_value, total_marketcap)
-							VALUES (%s, %s, %s, %s) 
-							ON DUPLICATE KEY UPDATE 
-							total_value = VALUES(total_value), 
-							total_marketcap = VALUES(total_marketcap)""", 
-							bf_rows)
-				except Exception as e:
-					print(f"Error processing sheet: {sheet_name}, {e}")
 
-		conn.commit()
-	except Error as e:
-		print(f"BF Error: {e}")
-		new_log_entry(conn, ("h", "Bitformance", f"Error: {e}"))
+	# EW
+	response = requests.get(
+		f"https://api.bitformance.com/api/v2/get-top200-data", 
+		headers={"API-KEY": bf_api_public,"API-SECRET-KEY": bf_api_priv}, 
+		params={"timeseries_interval": "daily", "weighting_method": "equal_weight"})
+	data = response.json()
+	df = pd.json_normalize(data["data"]["daily_timeseries_data"])
+	df.rename(columns={"date":"datestamp", "value":f"equal_weight_value"}, inplace=True)
+	df.insert(1, "sheet_name", "top200")
+	udb(conn, "update", "bf_raw_data", 2, df)
+
+	# Total market cap
+	response = requests.get(
+		f"https://api.bitformance.com/api/v2/get-top200-data", 
+		headers={"API-KEY": bf_api_public,"API-SECRET-KEY": bf_api_priv}, 
+		params={"timeseries_interval": "daily", "metric": "market_cap"})
+	data = response.json()
+	df = pd.json_normalize(data["data"]["daily_timeseries_data"])
+	df.rename(columns={"date":"datestamp", "value":f"total_marketcap_value"}, inplace=True)
+	df.insert(1, "sheet_name", "top200")
+	udb(conn, "update", "bf_raw_data", 2, df)
+
+
+	# Get all indexes
+	response = requests.get(
+		f"https://api.bitformance.com/api/v2/get-sector-indexes", 
+		headers={"API-KEY": bf_api_public,"API-SECRET-KEY": bf_api_priv})
+	indexes = response.json()["data"]
+
+	for index in indexes:
+		index_id = index["index_info"]["_id"]
+		index_weighing_method = index["index_info"]["weighting_method"]
+		index_name = index["index_info"]["name"]
+		if "EQW " in index_name:
+			index_name = index_name.strip("EQW ")
+		print(f"ID: {index_id} - Method: {index_weighing_method} - Name: {index_name}")
+
+		# Get index data for default and eqw
+		response = requests.get(
+			f"https://api.bitformance.com/api/v2/get-index-data", 
+			headers={"API-KEY": bf_api_public,"API-SECRET-KEY": bf_api_priv}, 
+			params={"timeseries_interval": "daily", "index_id":index_id, "metric": "closing_price"})
+		data = response.json()
+		with open("data.json", "w") as f:
+			json.dump(data, f, indent=4)
+		df = pd.json_normalize(data["data"]["daily_timeseries_data"])
+		df.rename(columns={"date":"datestamp", "value":f"{index_weighing_method}_value"}, inplace=True)
+		df.insert(1, "sheet_name", index_name)
+		udb(conn, "update", "bf_raw_data", 2, df)
+
+		# Get index data for marketcap
+		response = requests.get(
+			f"https://api.bitformance.com/api/v2/get-index-data", 
+			headers={"API-KEY": bf_api_public,"API-SECRET-KEY": bf_api_priv}, 
+			params={"timeseries_interval": "daily", "index_id":index_id, "metric": "market_cap"})
+		data = response.json()
+		with open("data.json", "w") as f:
+			json.dump(data, f, indent=4)
+		df = pd.json_normalize(data["data"]["daily_timeseries_data"])
+		df.rename(columns={"date":"datestamp", "value":f"total_marketcap_value"}, inplace=True)
+		df.insert(1, "sheet_name", index_name)
+		udb(conn, "update", "bf_raw_data", 2, df)
+	print("bitformance - update finished")
+	new_log_entry(conn, ("g", "bitformance", "finished update"))
