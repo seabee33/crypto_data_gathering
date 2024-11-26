@@ -5,7 +5,6 @@ from dotenv import load_dotenv
 from m_functions import *
 load_dotenv()
 art_api_key = os.getenv("ART_API_KEY")
-db_password = os.getenv("LOCAL_DB_PASSWORD")
 api_query = {"APIKey": art_api_key}
 
 
@@ -17,6 +16,8 @@ def art_get_existing_projects(conn):
 			rows = cursor.fetchall()
 			existing_projects_list = [row[0] for row in rows]
 			return existing_projects_list
+	except Error as e:
+		print(f"Error trying to get existing projects: {e}")
 
 
 def art_get_projects_in_string(conn):
@@ -26,24 +27,29 @@ def art_get_projects_in_string(conn):
 			rows = cursor.fetchall()
 			existing_projects_list = [row[0] for row in rows]
 			return ",".join(existing_projects_list)
+	except Error as e:
+		print(f"Error trying to get existing projects (str): {e}")
 
 
 def art_get_selected_metrics_in_string(conn):
-	with conn.cursor() as cursor:
-		cursor.execute("SELECT selected_metric FROM art_selected_metrics ORDER BY selected_metric ASC")
-		rows = cursor.fetchall()
-		existing_projects_list = [row[0] for row in rows]
-		return ",".join(existing_projects_list)
-
+	try:
+		with conn.cursor() as cursor:
+			cursor.execute("SELECT selected_metric FROM art_selected_metrics ORDER BY selected_metric ASC")
+			rows = cursor.fetchall()
+			existing_projects_list = [row[0] for row in rows]
+			return ",".join(existing_projects_list)
+	except Error as e:
+		print(f"Error trying to get existing metrics (str): {e}")
 
 # Update all projects from api
-def art_update_all_projects_list(conn, api_query):
+def art_update_all_projects_list(conn):
 	try:
 		with conn.cursor() as cursor:
 			new_log_entry(conn, ("g", "artemis", "Checking for new projects"))
 			print("Updating artemis project list")
 			url = "https://api.artemisxyz.com/asset"
 			headers = {"accept": "application/json"}
+			api_query = {"APIKey":art_api_key}
 			response = requests.get(url, headers=headers, params=api_query)
 
 			if response.status_code == 200:
@@ -77,8 +83,10 @@ def art_update_all_projects_list(conn, api_query):
 					new_log_entry(conn, ("l", "artemis", f"{len(new_projects)} new projects added"))
 					print("No new artemis projects since last update")	
 			else:
-				new_log_entry(conn, ("h", "artemis", f"Status code '{response.statuscode} when trying to update project list'"))
+				new_log_entry(conn, ("h", "artemis", f"Status code '{response.status_code} when trying to update project list'"))
 				print(f"Artemis API response code: {response.status_code}")
+	except Error as e:
+		print(f"Error trying to upodate project list: {e}")
 
 
 def art_get_local_project_metrics(conn, project_name):
@@ -88,44 +96,48 @@ def art_get_local_project_metrics(conn, project_name):
 			rows = cursor.fetchall()
 			existing_project_metrics = [row[0] for row in rows]
 			return existing_project_metrics
+	except Error as e:
+		print(f"Error trying to get local project metrics: {e}")
 
 
 # Gets all metrics per project from artemis api
 def art_get_api_project_metrics(conn, api_query):
 	try:
 		with conn.cursor() as cursor:
-		new_log_entry(conn, ("g", "artemis", "Checking for new metrics"))
-		HEADERS = {"accept": "application/json"}
-		CURRENT_DATE = datetime.now().strftime("%Y-%m-%d")
+			new_log_entry(conn, ("g", "artemis", "Checking for new metrics"))
+			HEADERS = {"accept": "application/json"}
+			CURRENT_DATE = datetime.now().strftime("%Y-%m-%d")
 
-		all_project_names = art_get_existing_projects(conn)
+			all_project_names = art_get_existing_projects(conn)
 
-		for project in all_project_names:
-			response = requests.get(f"https://api.artemisxyz.com/asset/{project}/metric", headers=HEADERS, params=api_query)
+			for project in all_project_names:
+				response = requests.get(f"https://api.artemisxyz.com/asset/{project}/metric", headers=HEADERS, params=api_query)
 
-			if response.status_code == 200:
-				new_log_entry(conn, ("g", "artemis", "Status code OK"))
-				data = response.json()
-				metrics = data.get("metrics", [])
-				existing_project_metrics = art_get_local_project_metrics(conn, project)
-				new_project_metric = []
+				if response.status_code == 200:
+					new_log_entry(conn, ("g", "artemis", "Status code OK"))
+					data = response.json()
+					metrics = data.get("metrics", [])
+					existing_project_metrics = art_get_local_project_metrics(conn, project)
+					new_project_metric = []
 
-				for metric in metrics:
-					if metric not in existing_project_metrics:
-						new_project_metric.append((project, metric, CURRENT_DATE))
-				
-				if new_project_metric:
-					cursor.executemany("INSERT INTO art_available_project_metrics (project_name, metric_name, date_added) VALUES (%s, %s, %s)", new_project_metric)
-					conn.commit()
-					print(f"{len(new_project_metric)} new metrics added for project {project}")
-					new_log_entry(conn, ("g", "artemis", f"{len(new_project_metric)} new metrics added for project {project}"))
+					for metric in metrics:
+						if metric not in existing_project_metrics:
+							new_project_metric.append((project, metric, CURRENT_DATE))
+					
+					if new_project_metric:
+						cursor.executemany("INSERT INTO art_available_project_metrics (project_name, metric_name, date_added) VALUES (%s, %s, %s)", new_project_metric)
+						conn.commit()
+						print(f"{len(new_project_metric)} new metrics added for project {project}")
+						new_log_entry(conn, ("g", "artemis", f"{len(new_project_metric)} new metrics added for project {project}"))
+					else:
+						print(f"No new metrics for {project}")
+						new_log_entry(conn, ("g", "artemis", "No new metrics found"))
+
 				else:
-					print(f"No new metrics for {project}")
-					new_log_entry(conn, ("g", "artemis", "No new metrics found"))
-
-			else:
-				print(f"Artemis response error code: {response.status_code}")
-				new_log_entry(conn, ("h", "artemis", f"Status code '{response.statuscode} when trying to update project metrics'"))
+					print(f"Artemis response error code: {response.status_code}")
+					new_log_entry(conn, ("h", "artemis", f"Status code '{response.status_code} when trying to update project metrics'"))
+	except Error as e:
+		print(f"Error trying to get api metrics avaiakble: {e}")
 
 
 
@@ -137,6 +149,8 @@ def art_get_all_unique_metrics(conn):
 			rows = cursor.fetchall()
 			unique_project_metrics = [row[0] for row in rows]
 			return unique_project_metrics
+	except Error as e:
+		print(f"Error trying to get local metrics: {e}")			
 
 
 # Gets all metrics including duplicates for every project from db
@@ -147,6 +161,8 @@ def art_get_all_available_metrics(conn):
 			rows = cursor.fetchall()
 			all_project_metrics = [row[0] for row in rows]
 			return all_project_metrics
+	except Error as e:
+		print(f"Error trying to get local metrics inc dupes: {e}")
 
 
 # Gets all unique metrics from unique_metrics table
@@ -163,7 +179,6 @@ def art_update_unique_metrics_table(conn):
 			for metric in current_all_available_metrics:
 				if metric not in current_unique_metrics:
 					new_unique_metrics.append((metric, CURRENT_DATE))
-				
 
 			new_unique_metrics = list(set(new_unique_metrics))
 
@@ -176,7 +191,8 @@ def art_update_unique_metrics_table(conn):
 			else:
 				print("No new unique metrics")
 				new_log_entry(conn, ("g", "artemis", "No new unique metrics"))
-
+	except Error as e:
+		print(f"Error trying to update raw data {e}")
 
 def art_get_saved_ecosystem_data(conn):
 	try:
@@ -185,6 +201,8 @@ def art_get_saved_ecosystem_data(conn):
 			rows = cursor.fetchall()
 			existing_supported_ecosystems = [row[0] for row in rows]
 			return existing_supported_ecosystems
+	except Error as e:
+		print(f"Error trying to get local ecosystem data: {e}")
 
 
 # Get a list of supported ecosystems (includes junk data, not main projects)
@@ -221,7 +239,8 @@ def art_update_supported_ecosystems_from_api(conn, api_query):
 
 			else:
 				print(response.status_code)
-
+	except Error as e:
+		print(f"Error trying to get api metrics avaiakble: {e}")
 
 def art_get_wanted_metrics(conn):
 	try:
@@ -230,7 +249,8 @@ def art_get_wanted_metrics(conn):
 			rows = cursor.fetchall()
 			existing_selected_metrics = [row[0] for row in rows]
 			return existing_selected_metrics
-
+	except Error as e:
+		print(f"Error trying to get wanted metrics: {e}")
 
 
 def art_add_selected_metrics(conn):
@@ -250,18 +270,21 @@ def art_add_selected_metrics(conn):
 			if metrics_to_add_to_db:
 				cursor.executemany("INSERT INTO art_selected_metrics (selected_metric) VALUES (%s)", metrics_to_add_to_db)
 				conn.commit()
-
+	except Error as e:
+		print(f"Error trying to updated wanted metrics: {e}")
 
 def art_get_most_recent_metrics_data_date(conn, single_project_name):
-	with conn.cursor() as cursor:
-		cursor.execute("SELECT datestamp FROM art_metric_data WHERE project_name=%s ORDER BY datestamp DESC LIMIT 1", (single_project_name,))
-		date = cursor.fetchone()
+	try:
+		with conn.cursor() as cursor:
+			cursor.execute("SELECT datestamp FROM art_metric_data WHERE project_name=%s ORDER BY datestamp DESC LIMIT 1", (single_project_name,))
+			date = cursor.fetchone()
 
-		if date == None:
-			return None
-		else:
-			return date[0]
-
+			if date == None:
+				return None
+			else:
+				return date[0]
+	except Error as e:
+		print(f"Error trying to get most recent data update for {single_project_name} : {e}")
 
 
 def get_date_list_from_metrics(data):
@@ -274,11 +297,13 @@ def get_date_list_from_metrics(data):
 
 
 def art_get_existing_metrics(conn, metrics_as_string, project_name):
-    with conn.cursor() as cursor:
-        cursor.execute(f"SELECT {metrics_as_string} FROM art_metric_data WHERE project_name=%s ORDER BY datestamp DESC LIMIT 5", (project_name,))
-        result = cursor.fetchall()
-        return(result)
-
+	try:
+		with conn.cursor() as cursor:
+			cursor.execute(f"SELECT {metrics_as_string} FROM art_metric_data WHERE project_name=%s ORDER BY datestamp DESC LIMIT 5", (project_name,))
+			result = cursor.fetchall()
+			return(result)
+	except Error as e:
+		print(f"Error trying to get local metrics: {e}")
 
 # Update metric DATA
 def art_update_metric_data(conn, art_api_key):
@@ -349,7 +374,7 @@ def art_update_metric_data(conn, art_api_key):
 					""", result_list)
 					conn.commit()
 				else:
-					print(f"UH OH, error code: {response.status_code}")
-					new_log_entry(conn, ("h", "artemis", f"Status code '{response.statuscode} when trying to update project metrics data'"))
-
-
+					print(f"UH OH, error code: {response.status_code} for {single_project_name}")
+					new_log_entry(conn, ("h", "artemis", f"Status code '{response.status_code} for {single_project_name}'"))
+	except Error as e:
+		print(f"Error trying to updat art raw data: {e}")
