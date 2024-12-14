@@ -4,16 +4,44 @@ from mysql.connector import Error
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
+load_dotenv()
 from m_functions import *
 from io import BytesIO, StringIO
 from urllib.parse import urlparse, unquote
+
+bf_api_public = os.getenv("BITFORMANCE_API_PUB")
+bf_api_priv = os.getenv("BITFORMANCE_API_PRIV")
+
+def bf_get_coin_info(conn):
+	try:
+		with conn.cursor() as cursor:
+			page = 1
+			keep_going = "y"
+			while keep_going == "y":
+				response = requests.get(f"https://api.bitformance.com/api/v2/get-all-coins?page={page}", headers={"API-KEY": bf_api_public,"API-SECRET-KEY": bf_api_priv})
+				if response.status_code == 200:
+					data = response.json()
+					# Check for empty list
+					if not data["data"]:
+						keep_going = "n"
+					else:
+						df = pd.json_normalize(data["data"])
+						df = df[["coin_slug", "name", "symbol", "tier_lvl_1", "tier_lvl_2"]]
+						# print(data)
+						# print(df)
+						page += 1
+						udb(conn, "update", "bf_coin_data", 1, df)
+				else:
+					keep_going = "n"
+					print(response.status_code)
+	except Error as e:
+		print(f"bf - trying to update coins, error: {e}")
+
 
 def bf_update_data(conn):
 	print("bitformance - beginning update")
 	new_log_entry(conn, ("g", "bitformance", "beginning update"))
 
-	bf_api_public = os.getenv("BITFORMANCE_API_PUB")
-	bf_api_priv = os.getenv("BITFORMANCE_API_PRIV")
 	# MC
 	response = requests.get(
 		f"https://api.bitformance.com/api/v2/get-top200-data", 
