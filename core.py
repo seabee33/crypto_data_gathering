@@ -28,14 +28,14 @@ db_password = os.getenv("LOCAL_DB_PASSWORD")
 update_project_list = False
 
 # Artemis
-update_art_sf = False
-update_artemis = False
+update_art_sf = True
+update_artemis = True
 
 # Token Terminal
-update_token_terminal = False
+update_token_terminal = True
 
 # Bitformance
-update_bitformance = False
+update_bitformance = True
 
 # Defi Llama
 update_defi_llama = True
