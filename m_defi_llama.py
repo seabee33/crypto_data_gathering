@@ -104,7 +104,7 @@ def dl_get_mapped_name(project_id):
 def dl_update_project_raw_data(conn):
 
 	# Update dapp list first
-	# dl_update_project_list(conn)
+	dl_update_project_list(conn)
 
 	mapping = {
 		"apeswap":"apeswap-amm",
@@ -144,6 +144,9 @@ def dl_update_project_raw_data(conn):
 						if "totalDataChartBreakdown" in raw_data:
 							data = raw_data["totalDataChartBreakdown"]
 
+							df = pd.DataFrame(data)
+
+							print(df)
 							rows = []
 
 							for entry in data:
@@ -160,11 +163,9 @@ def dl_update_project_raw_data(conn):
 							df = pd.DataFrame(rows)
 							df = df.fillna(0)
 							df.insert(1, "project_id", project)
-							chain_names = list(df.columns)
-							if "real" in chain_names:
-								df.rename(columns={"real":"real_chain"}, inplace=True)
-							print(f"DL - updating db with {project}")
-							udb(conn, "update", "dl_dapp_fees_raw", 2, df)
+
+
+							# udb(conn, "update", "dl_dapp_fees_raw", 2, df)
 
 					elif response.status_code == 404:
 						print(f"dl - couldn't find data for: {project}")
@@ -176,89 +177,83 @@ def dl_update_project_raw_data(conn):
 
 
 
-def dl_setup_dapp_calc(conn):
-	try:
-		with conn.cursor() as cursor:
-			cursor.execute("INSERT INTO dl_dapp_calc (datestamp) SELECT  DISTINCT datestamp FROM dl_dapp_fees_raw ORDER BY DATESTAMP DESC;")
-			conn.commit()
-	except Error as e:
-		print(e)
 
+def dl_calculations(conn):
+	cursor = conn.cursor(pymysql.cursors.DictCursor)
 
-# This part is incredibily inefficient and needs to be fixed
-def dl_calculate_dapps_greater_then_x(conn):
-	monthly_filter_value = 1000
-	try:
-		with conn.cursor() as cursor:
+	calculations = []
 
-			print("wiping calc table")
-			cursor.execute("TRUNCATE dl_dapp_calc")
-			print("inserting dates")
-			dl_setup_dapp_calc(conn)
+	for chain in all_chains:
+		print(f"working on {chain}")
+		cursor.execute(f"SELECT datestamp, project_id, chain, fees FROM `dl_dapp_fees_raw` where chain ='{chain}' AND datestamp != NOW() ORDER BY `dl_dapp_fees_raw`.`datestamp` ASC")
 
-			cursor.execute("SELECT DISTINCT project_id FROM dl_dapp_fees_raw ORDER BY project_id ASC")
-			dapps_raw = cursor.fetchall()
-			dapp_list = [dl_get_mapped_name(row[0]) for row in dapps_raw]
-
-			cursor.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'dl_dapp_fees_raw'")
-			col_names = cursor.fetchall()
-			col_names = [col[0] for col in col_names]
-
-			unwanted_cols = ["id", "project_id", "datestamp"]
-			chains = [col for col in col_names if col not in unwanted_cols]
-
-			for dapp in dapp_list:
-				cursor.execute(f"SELECT MIN(datestamp) FROM dl_dapp_fees_raw WHERE project_id='{dapp}'")
-				earliest_datestamp = cursor.fetchone()[0]
-				# print(f"min datestamp for {dapp} is {earliest_datestamp} ")
-
-				thirty_days_ago = (datetime.today() - timedelta(days=32)).date()
-				two_days_ago = (datetime.today() - timedelta(days=2)).date()
-
-				# print(f"30 days ago: {thirty_days_ago}, today: {two_days_ago}")
+		chain_data = cursor.fetchall()
+		if chain_data:
+			df = pd.DataFrame(chain_data, columns=['datestamp', 'project_id', 'chain', 'fees'])
+		else:
+			print(f"No data found for chain: {chain}")
+			continue
 			
-				for chain in chains:
-					temp_thirty_days = thirty_days_ago
-					temp_two_days = two_days_ago
+		df['datestamp'] = pd.to_datetime(df['datestamp'])
+		
+		# Get unique dates
+		unique_dates = sorted(df['datestamp'].unique())
+		
+		for date in unique_dates:
+			# Get data for this date
+			date_df = df[df['datestamp'] == date]
+			
+			# Calculate fees_over_0 and count_over_0 for this date
+			fees_over_0 = date_df['fees'].sum()
+			count_over_0 = len(date_df['project_id'].unique())
+			
+			# Initialize fees_over_1000 and count_over_1000
+			fees_over_1000 = 0
+			count_over_1000 = 0
+			
+			# Check each project's 30-day rolling fees
+			for project_id in date_df['project_id'].unique():
+				# Get project's data up to and including this date
+				project_df = df[(df['project_id'] == project_id) & (df['datestamp'] <= date)]
+				
+				# Get the last 30 days of data (or less if not enough history)
+				cutoff_date = date - pd.Timedelta(days=30)
+				last_30_days_df = project_df[project_df['datestamp'] > cutoff_date]
+				last_30_days_fees = last_30_days_df['fees'].sum()
+				
+				# Check if this project contributed >1000 fees in the last 30 days
+				if last_30_days_fees > 1000:
+					# Get fees for this project on this specific date
+					project_fees_today = date_df[date_df['project_id'] == project_id]['fees'].sum()
+					fees_over_1000 += project_fees_today
+					count_over_1000 += 1
+			
+			# Add row to calculations
+			calculations.append({
+				'datestamp': date.strftime('%Y-%m-%d'),
+				'chain': chain,
+				'fees_over_1000': fees_over_1000,
+				'count_over_1000': count_over_1000,
+				'fees_over_0': fees_over_0,
+				'count_over_0': count_over_0
+			})
 
+	# Create DataFrame from calculations
+	if calculations:
+		calc_df = pd.DataFrame(calculations)
+		udb(conn, 'update', 'dl_calcs', 2, calc_df)
 
-					# ------------------------ > $1000 ------------------------
-					while temp_thirty_days > earliest_datestamp:
-						# print(f"Executing1: SELECT sum({chain}) from dl_dapp_fees_raw WHERE project_id='{dapp}' AND datestamp BETWEEN '{temp_thirty_days}' AND '{temp_two_days}'")
-						cursor.execute(f"SELECT sum({chain}) from dl_dapp_fees_raw WHERE project_id='{dapp}' AND datestamp BETWEEN '{temp_thirty_days}' AND '{temp_two_days}'")
-						monthly_total = cursor.fetchone()[0]
-
-						if monthly_total and monthly_total > monthly_filter_value:
-							# print(f"Executing2: SELECT {chain} FROM dl_dapp_fees_raw WHERE datestamp = '{temp_two_days}' AND project_id = '{dapp}' ORDER BY datestamp DESC")
-							cursor.execute(f"SELECT {chain} FROM dl_dapp_fees_raw WHERE datestamp = '{temp_two_days}' AND project_id = '{dapp}' ORDER BY datestamp DESC")
-							data = cursor.fetchone()
-							data_value = data[0] if data is not None else None
-							count = 1 if data is not None else 0
-							# print(f"Data for {dapp} on {temp_two_days} for {chain}: {data_value}")
-
-							#update deez nuts
-							update_fee_query = f"UPDATE dl_dapp_calc SET {chain} = COALESCE({chain}, 0) + COALESCE(%s,0) WHERE datestamp=%s"
-							update_dapp_query = f"UPDATE dl_dapp_calc SET {chain}_c = COALESCE({chain}_c, 0) + %s WHERE datestamp=%s"
-							# print(f"Executing: {update_query}")
-							cursor.execute(update_fee_query, (data_value, temp_two_days))
-							cursor.execute(update_dapp_query, (count, temp_two_days))
-
-						temp_thirty_days -= timedelta(days=1)
-						temp_two_days -= timedelta(days=1)
-				print(f"DL - Updated data for {dapp}")
-				conn.commit()
-
-	except Error as e:
-		print(e)
+	else:
+		print("No calculations were generated.")
 
 
 
 def dl_update_defi_llama_tables(conn):
-	print("Updating projects list and raw data")
+	print("DL - Updating projects list and raw data")
 	dl_update_project_raw_data(conn)
 
-	print("Updating calc table")
-	dl_calculate_dapps_greater_then_x(conn)
+	print("DL - Updating calc table")
+	dl_calculations(conn)
 
 
 def dl_update_overview_yield(engine):
