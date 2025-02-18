@@ -124,7 +124,7 @@ def update_defi_llama_data():
 	if update_defi_llama:
 		new_log_entry(conn, ("g", "Core", "Beginning update for Defi Llama data"))
 		dl_update_defi_llama_tables(conn)
-		# dl_update_overview_yield(engine)
+		dl_update_overview_yield(engine)
 		new_log_entry(conn, ("g", "Core", "Finished update for Defi Llama successfully"))
 
 def update_cq_data():
@@ -257,64 +257,29 @@ try:
 		""")
 		single_conn.commit()
 
-
-		# defillama chain fees
 		print("updating j_raw with dl chain fees")
 
 		cursor.execute("""
-		SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
-		WHERE TABLE_SCHEMA = 'helios' 
-		AND TABLE_NAME = 'dl_dapp_calc' 
-		AND COLUMN_NAME NOT LIKE '%\_c%' 
-		AND COLUMN_NAME NOT IN ('id','datestamp');
+		SELECT DISTINCT chain FROM dl_calcs;
 		""")
-		columns = [row[0] for row in cursor.fetchall()]
+		chains = [row[0] for row in cursor.fetchall()]
 
-		update_queries_dl_fees = []
+		update_query = """
+		UPDATE j_raw
+		JOIN project_mapping ON j_raw.project_name = project_mapping.j_raw
+		JOIN dl_calcs ON project_mapping.defi_llama = dl_calcs.chain AND j_raw.datestamp = dl_calcs.datestamp
+		SET 
+		j_raw.dl_chain_fees_1000 = dl_calcs.fees_over_1000,
+		j_raw.dl_dapp_count_1000 = dl_calcs.count_over_1000,
+		j_raw.dl_dapp_fees_raw = dl_calcs.fees_over_0,
+		j_raw.dl_dapp_count_raw = dl_calcs.count_over_0
 
-		for column in columns:
-			query = f"""
-				UPDATE j_raw jr
-				JOIN project_mapping pm ON jr.project_name = pm.j_raw
-				JOIN dl_dapp_calc dc ON pm.defi_llama = '{column}' AND jr.datestamp = dc.datestamp
-				SET jr.dl_chain_fees_1000 = dc.{column}
-				WHERE pm.defi_llama = '{column}';
-			"""
-			update_queries_dl_fees.append(query)
+		WHERE project_mapping.defi_llama = dl_calcs.chain;
+		"""
 
-		for query in update_queries_dl_fees:
-			cursor.execute(query)
-
+		cursor.execute(update_query)
 		single_conn.commit()
 
-		# defillama dapp > $100 count
-		print("updating j_raw with dl chain fee dapp count")
-
-		cursor.execute("""
-		SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
-		WHERE TABLE_SCHEMA = 'helios' 
-		AND TABLE_NAME = 'dl_dapp_calc' 
-		AND COLUMN_NAME LIKE '%\_c' 
-		AND COLUMN_NAME NOT IN ('id','datestamp');
-		""")
-		columns = [row[0][:-2] for row in cursor.fetchall()]
-
-		update_queries_dl_c = []
-
-		for column in columns:
-			query = f"""
-				UPDATE j_raw jr
-				JOIN project_mapping pm ON jr.project_name = pm.j_raw
-				JOIN dl_dapp_calc dc ON pm.defi_llama = '{column}' AND jr.datestamp = dc.datestamp
-				SET jr.dl_dapp_count_1000 = dc.{column}_c
-				WHERE pm.defi_llama = '{column}';
-			"""
-			update_queries_dl_c.append(query)
-
-		for query in update_queries_dl_c:
-			cursor.execute(query)
-
-		single_conn.commit()
 
 
 

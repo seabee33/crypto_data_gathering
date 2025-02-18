@@ -1,4 +1,4 @@
-import requests, mysql.connector, json, time, os, io, urllib.parse, sqlalchemy
+import requests, mysql.connector, json, time, os, io, urllib.parse, sqlalchemy, pymysql
 from playwright.sync_api import sync_playwright
 from mysql.connector import Error
 from datetime import datetime, timedelta, date
@@ -11,6 +11,18 @@ db_username = os.getenv("DB_USERNAME")
 db_password = os.getenv("LOCAL_DB_PASSWORD")
 
 
+# get all chain names
+def dl_get_all_chain_names(conn):
+	try:
+		with conn.cursor() as cursor:
+			cursor.execute("SELECT distinct chain FROM dl_dapp_fees_raw ORDER BY chain ASC")
+			rows = cursor.fetchall()
+			existing_project_ids = [row[0] for row in rows]
+			return existing_project_ids
+	except Error as e:
+		print("sr, error getting local db projects")
+
+
 # Get project slug from local db
 def dl_get_existing_project_ids(conn):
 	try:
@@ -20,7 +32,7 @@ def dl_get_existing_project_ids(conn):
 			existing_project_ids = [row[0] for row in rows]
 			return existing_project_ids
 	except Error as e:
-		print("sr, error getting local db projects")
+		print("dl - error getting local db projects")
 
 
 # Checks if latest datestamp is 2 days ago
@@ -123,6 +135,8 @@ def dl_update_project_raw_data(conn):
 
 	try:
 		with conn.cursor() as cursor:
+			cursor.execute('TRUNCATE dl_dapp_fees_raw')
+			conn.commit()
 			project_list = dl_get_existing_project_ids(conn)
 			print(f"projects: {len(project_list)}")
 			updated_project_list = []
@@ -136,7 +150,7 @@ def dl_update_project_raw_data(conn):
 				last_update = dl_check_if_data_is_up_to_date(conn, project)
 
 				if last_update:
-					print(f"{project} is up to date, skipping")
+					print(f"dl - {project} is up to date, skipping")
 				else:
 					response = requests.get(f"https://api.llama.fi/summary/fees/{project}?dataType=dailyFees")
 					if response.status_code == 200:
@@ -144,28 +158,26 @@ def dl_update_project_raw_data(conn):
 						if "totalDataChartBreakdown" in raw_data:
 							data = raw_data["totalDataChartBreakdown"]
 
-							df = pd.DataFrame(data)
-
-							print(df)
-							rows = []
+							normalized_rows = []
 
 							for entry in data:
 								datestamp = datetime.utcfromtimestamp(entry[0]).strftime('%Y-%m-%d')
 								chain_data = entry[1]
 
-								row = {"datestamp": datestamp}
-
 								for chain, projects in chain_data.items():
-									total = sum(projects.values())
-									row[chain] = total
-								rows.append(row)
-							
-							df = pd.DataFrame(rows)
+									total_fees = sum(projects.values())
+									normalized_rows.append({
+										'datestamp': datestamp,
+										'project_id': project, 
+										'chain': chain,
+										'fees': total_fees
+									})
+						
+						if normalized_rows:
+							df = pd.DataFrame(normalized_rows)
 							df = df.fillna(0)
-							df.insert(1, "project_id", project)
 
-
-							# udb(conn, "update", "dl_dapp_fees_raw", 2, df)
+							udb(conn, "update", "dl_dapp_fees_raw", 2, df)
 
 					elif response.status_code == 404:
 						print(f"dl - couldn't find data for: {project}")
@@ -176,10 +188,13 @@ def dl_update_project_raw_data(conn):
 		print(f"error updating defi llama data: {e}")
 
 
-
-
 def dl_calculations(conn):
 	cursor = conn.cursor(pymysql.cursors.DictCursor)
+
+	cursor.execute('TRUNCATE dl_calc')
+	conn.commit()
+
+	all_chains = dl_get_all_chain_names(conn)
 
 	calculations = []
 
@@ -248,14 +263,6 @@ def dl_calculations(conn):
 
 
 
-def dl_update_defi_llama_tables(conn):
-	print("DL - Updating projects list and raw data")
-	dl_update_project_raw_data(conn)
-
-	print("DL - Updating calc table")
-	dl_calculations(conn)
-
-
 def dl_update_overview_yield(engine):
 	print("Updating DL yield overview")
 	with sync_playwright() as p:
@@ -304,3 +311,21 @@ def dl_update_overview_yield(engine):
 			df.to_sql("dl_yield", con=engine, if_exists="replace", index=False)
 
 			browser.close()
+
+
+# debugging
+# def dl_update_defi_llama_tables(conn):
+# 	print("DL - Updating projects list and raw data")
+# 	dl_update_project_raw_data(conn)
+
+# 	print("DL - Updating calc table")
+# 	dl_calculations(conn)
+
+
+
+# db_name = os.getenv("DB_NAME")
+# db_username = os.getenv("DB_USERNAME")
+# db_password = os.getenv("LOCAL_DB_PASSWORD")
+# conn = mysql.connector.connect(host="localhost", database=db_name, user=db_username, password=db_password, port=3303)
+
+# dl_update_defi_llama_tables(conn)
