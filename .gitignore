@@ -1,0 +1,5 @@
+.env
+gcreds.json
+google_sheets.py
+jamies_excel_sheet.py
+queries.sql
