@@ -181,7 +181,7 @@ def tt_update_project_list(conn, tt_api_key):
 				print(f"tt - trying to update project list - API response code: {response.status_code}")
 				new_log_entry(conn, ("g", "token terminal", "No new projects since last update"))
 		except Error as e:
-			print(e)
+			print('tt - ', e)
 
 # Updates database with a list of all market secors
 def tt_update_all_market_sectors_list(cursor, conn, tt_api_key):

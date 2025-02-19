@@ -22,7 +22,7 @@ def art_sf_get_last_update(project, col, conn):
 		if raw_data is None or raw_data[0] is None:
 			return "2010-01-01"
 		else:
-			date_m7 = (raw_data[0] - timedelta(days=7)).strftime("%Y-%m-%d")
+			date_m7 = (raw_data[0] - timedelta(days=4)).strftime("%Y-%m-%d")
 			return date_m7
 
 # Updates data by getting the metric from the SF db and copying it to local db with custom names
