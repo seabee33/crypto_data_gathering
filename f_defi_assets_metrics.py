@@ -12,55 +12,61 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 def fetch_j_raw_defi(conn):
     query = """
 SELECT 
-    project_name,
-    datestamp,
-    sector,
-    avg_txn_fee,
-    active_developers,
-    active_addresses_weekly,
-    active_loans,
-    circulating_supply,
-    daa,
-    daa_over_100,
-    dex_volume,
-    earnings,
-    fees,
-    fdmc,
-    gross_profit,
-    maa,
-    mc,
-    price,
-    revenue,
-    stablecoin_mc,
-    stablecoin_transfer_volume,
-    transactions,
-    tokenholders,
-    token_incentives,
-    token_supply_maximum,
-    tvl,
-    volume_24h_usd,
-    weekly_commits_core,
-    weekly_commits_sub,
-    weekly_dev_core,
-    weekly_dev_sub,
-    weekly_contracts_deployed,
-    weekly_contract_deployers,
-    weekly_unique_contract_deployers,
-    sr_active_validators,
-    sr_annualized_rewards_usd,
-    sr_circulating_percentage,
-    sr_daily_trading_volume,
-    sr_delegated_tokens,
-    sr_inflation_rate,
-    sr_real_reward_rate,
-    sr_reward_rate,
-    sr_staked_tokens,
-    sr_staking_marketcap,
-    sr_staking_ratio,
-    sr_total_staking_wallets,
-    sr_total_validators,
-    dl_chain_fees_1000,
-    dl_dapp_count_1000
+project_name,
+datestamp,
+sector,
+avg_txn_fee,
+active_developers,
+active_addresses_weekly,
+active_loans,
+circulating_supply,
+daa,
+daa_over_100,
+dex_volume,
+earnings,
+fees,
+fdmc,
+gross_profit,
+maa,
+mc,
+price,
+p2p_swap_count,
+revenue,
+stablecoin_mc,
+stablecoin_transfer_volume,
+transactions,
+tokenholders,
+token_supply_circulating,
+token_incentives,
+token_supply_maximum,
+tvl,
+volume_24h_usd,
+weekly_commits_core,
+weekly_commits_sub,
+weekly_dev_core,
+weekly_dev_sub,
+weekly_contracts_deployed,
+weekly_contract_deployers,
+weekly_unique_contract_deployers,
+sr_active_validators,
+sr_annualized_rewards_usd,
+sr_circulating_percentage,
+sr_circulating_supply,
+sr_daily_trading_volume,
+sr_delegated_tokens,
+sr_inflation_rate,
+sr_real_reward_rate,
+sr_reward_rate,
+sr_staked_tokens,
+sr_staking_marketcap,
+sr_staking_ratio,
+sr_total_staking_wallets,
+sr_total_validators,
+dl_chain_fees_1000,
+dl_dapp_count_1000,
+dl_chain_fees_raw,
+dl_dapp_count_raw
+
     FROM j_raw
     WHERE project_name IN ('Aerodrome', 'Pancakeswap', 'Jupiter','Sushiswap','Uniswap',
         'Aave','Compound','Lido-finance', 'Makerdao','Pendle','Synthetix','1inch','Curve',
@@ -86,6 +92,7 @@ def calculate_metrics_defi(df):
     df['tvl_mean_90d'] = grouped['tvl'].rolling(window=90, min_periods=1).mean().reset_index(level=0, drop=True)
     
     df['fees_sum_90d'] = grouped['fees'].rolling(window=90, min_periods=1).sum().reset_index(level=0, drop=True)
+    df['revenue_sum_30d'] = grouped['revenue'].rolling(window=30, min_periods=1).sum().reset_index(level=0, drop=True)
     df['dex_volume_sum_90d'] = grouped['dex_volume'].rolling(window=90, min_periods=1).sum().reset_index(level=0, drop=True)
     df['stablecoin_transfer_volume_mean_90d'] = grouped['stablecoin_transfer_volume'].rolling(window=90, min_periods=1).mean().reset_index(level=0, drop=True)
 
@@ -100,6 +107,8 @@ def calculate_metrics_defi(df):
     # Metrics using 30-day rolling windows
     df['Network_Value_to_Fee_Ratio'] = np.where(df[['fees_sum_30d', 'fdmc']].notna().all(axis=1) & (df['fees_sum_30d'] != 0),
                                                 (df['fdmc'] / df['fees_sum_30d']) * (30 / 365), np.nan)
+    df['Network_Value_to_Revenue_Ratio'] = np.where(df[['revenue_sum_30d', 'fdmc']].notna().all(axis=1) & (df['revenue_sum_30d'] != 0),
+                                                (df['fdmc'] / df['revenue_sum_30d']) * (30 / 365), np.nan)
     df['Network_Value_to_address_Ratio'] = np.where(df[['daa_mean_30d', 'fdmc']].notna().all(axis=1) & (df['daa_mean_30d'] != 0),
                                                  df['fdmc'] / df['daa_mean_30d'], np.nan)
     df['Network_Value_to_DEX_Ratio'] = np.where(df[['dex_volume_sum_30d', 'fdmc']].notna().all(axis=1) & (df['dex_volume_sum_30d'] != 0),
@@ -164,7 +173,7 @@ def calculate_metrics_defi(df):
         'stablecoin_transfer_volume_mean_90d', 'daa_mean_30d', 'fees_sum_30d', 'tvl_mean_14d',
         'dex_volume_sum_30d', 'stablecoin_transfer_volume_mean_30d',
         'fees_mean_14d', 'dex_volume_mean_14d', 'stablecoin_transfer_volume_mean_14d', 
-        'daa_mean_14d'
+        'daa_mean_14d', 'revenue_sum_30d'
     ], inplace=True)
 
     return df
