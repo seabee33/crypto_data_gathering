@@ -92,6 +92,7 @@ def dl_update_project_list(conn):
 
 
 def dl_get_mapped_name(project_id):
+	# returns item on left if item on right given
 	mapping = {
 		"apeswap":"apeswap-amm",
 		"balanceddao":"balanced-exchange",
@@ -104,12 +105,14 @@ def dl_get_mapped_name(project_id):
 		"origin-defi":"origin-dollar",
 		"prisma":"prismalst",
 		"thala-labs":"thala-cdp",
-		"venus-finance":"venus-core-pool"
+		"venus-finance":"venus-core-pool",
+		"BEETS":'beethoven-x'
 	}
 	if project_id in mapping:
 		return mapping[project_id]
 	else:
 		return project_id
+
 
 
 # Update defi llama raw fee data
@@ -191,7 +194,7 @@ def dl_update_project_raw_data(conn):
 def dl_calculations(conn):
 	cursor = conn.cursor(pymysql.cursors.DictCursor)
 
-	cursor.execute('TRUNCATE dl_calc')
+	cursor.execute('TRUNCATE dl_calcs')
 	conn.commit()
 
 	all_chains = dl_get_all_chain_names(conn)
@@ -314,12 +317,12 @@ def dl_update_overview_yield(engine):
 
 
 # debugging
-# def dl_update_defi_llama_tables(conn):
-# 	print("DL - Updating projects list and raw data")
-# 	dl_update_project_raw_data(conn)
+def dl_update_defi_llama_tables(conn):
+	print("DL - Updating projects list and raw data")
+	dl_update_project_raw_data(conn)
 
-# 	print("DL - Updating calc table")
-# 	dl_calculations(conn)
+	print("DL - Updating calc table")
+	dl_calculations(conn)
 
 
 
