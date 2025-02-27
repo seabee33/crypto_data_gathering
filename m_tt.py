@@ -184,7 +184,8 @@ def tt_update_project_list(conn, tt_api_key):
 			print('tt - ', e)
 
 # Updates database with a list of all market secors
-def tt_update_all_market_sectors_list(cursor, conn, tt_api_key):
+def tt_update_all_market_sectors_list(conn, tt_api_key):
+	cursor = conn.cursor()
 	print("tt - Updating market sector list")
 	new_log_entry(conn, ("g", "token terminal", "Updating market sector list"))
 	url = "https://api.tokenterminal.com/v2/market-sectors"
@@ -235,7 +236,8 @@ def tt_get_all_market_sector_ids(cursor):
 
 
 # Update projects table to include market sectors
-def tt_update_project_ids_with_market_sector(cursor, conn, tt_api_key):
+def tt_update_project_ids_with_market_sector(conn, tt_api_key):
+	cursor = conn.cursor()
 	new_log_entry(conn, ("g", "token terminal", "Adding market secors to project ids"))
 	all_market_sectors = tt_get_all_market_sector_ids(cursor)
 
