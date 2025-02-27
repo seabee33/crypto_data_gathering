@@ -183,15 +183,11 @@ def update_token_terminal_data():
 			new_log_entry(conn, ("g", "Core", "Beginning update for token terminal"))
 			# ============ TOKEN TERMINAL ============
 			# Get a list of all market sectors
-			# tt_update_all_market_sectors_list(cursor, conn, tt_api_key)
+			tt_update_all_market_sectors_list(conn, tt_api_key)
 
 			# Apply market sector to project list
-			# tt_update_project_ids_with_market_sector(cursor, conn, tt_api_key)
+			tt_update_project_ids_with_market_sector(conn, tt_api_key)
 
-			# Update project list
-			# tt_update_project_list(cursor, conn, tt_api_key)
-
-			# tt_update_project_list(cursor, conn, tt_api_key)
 			tt_update_raw_data(conn, tt_api_key)
 			new_log_entry(conn, ("g", "Core", "finished update for tt successfully"))
 	finally:
@@ -203,9 +199,9 @@ try:
 	new_log_entry(single_conn, ("g", "Core", f"Beginning updates for {'Artemis (API),' if update_artemis else ''} {'Artemis (SF),' if update_art_sf else ''} {'TT,' if update_token_terminal else ''} {'Bitformance,' if update_bitformance else ''} {'FRED,' if update_fred else ''} {'CQ,' if update_cq else ''}  {'Fact Table,' if update_fact_table else ''}  {'Main Table' if update_main_table else ''}"))
 
 	if update_project_list:
-		bf_get_coin_info(single_conn)
-		# art_update_all_projects_list(conn)
-		# tt_update_project_list(conn, tt_api_key)
+		# bf_get_coin_info(single_conn)
+		art_update_all_projects_list(single_conn)
+		tt_update_project_list(single_conn, tt_api_key)
 
 	tasks = [
 		update_art_sf_data,
@@ -268,7 +264,7 @@ try:
 		cursor.execute("""
 		UPDATE j_raw j
 		JOIN project_mapping pm ON j.project_name = pm.j_raw  -- Match project names using mapping table
-		JOIN sr_raw_data sr ON pm.staking_rewards = sr.project_id AND j.datestamp = sr.datestamp  -- Match data by project ID and date
+		JOIN sr_raw_data sr ON pm.staking_rewards = sr.project_id AND j.datestamp = sr.datestamp
 		SET 
 			j.sr_active_validators = sr.active_validators,
 			j.sr_annualized_rewards_usd = sr.annualized_rewards_usd,
@@ -303,8 +299,6 @@ try:
 		j_raw.dl_dapp_count_1000 = dl_calcs.count_over_1000,
 		j_raw.dl_chain_fees_raw = dl_calcs.fees_over_0,
 		j_raw.dl_dapp_count_raw = dl_calcs.count_over_0
-
-		WHERE project_mapping.defi_llama = dl_calcs.chain;
 		"""
 
 		cursor.execute(update_query)
